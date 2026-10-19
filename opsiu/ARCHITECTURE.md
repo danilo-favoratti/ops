@@ -219,13 +219,20 @@ sequenceDiagram
 | `deputados`, `cota_uf`, `adicionais`, `caps` | reference data with `valid_from` |
 | `tse_candidatos`, `cnpj_empresas`, `cnpj_socios`, `nf_texto` | external snapshots with `snapshot_id` |
 | `runs`, `steps`, `events` | ledger |
-| `findings` | versioned findings with provenance columns |
+| `finding_records` | immutable versioned findings with provenance columns |
+| `finding_supersessions` | append-only supersession time and originating run |
+| `findings` (view) | stable finding read schema with current lifecycle status |
 | `pareceres` | agent outputs linked to `agent_traces` |
 | `agent_traces` | full prompt, response, model, usage, duration, status |
 | `decisions` | append-only human decisions |
 
 Migrations are plain SQL files applied in order and recorded; a migration is
 never edited after it is committed.
+
+Finding publication inserts immutable records and supersession events in one
+transaction. Foreign keys from PDF and agent records target `finding_records`;
+readers use `findings`. This avoids DuckDB's indexed-update foreign-key limitation
+without removing constraints or changing historical evidence (ADR 0010).
 
 ### Agents (AgentRig)
 

@@ -5,6 +5,16 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ## [Unreleased]
 
+### Fixed
+
+- Schema migration `0007a_findings_lifecycle` separates immutable finding records
+  from append-only supersession events. The `findings` view preserves the
+  existing read schema and current status. Existing findings and supersession
+  history are retained; PDF and agent foreign keys are retargeted transactionally
+  without changing any audit record or ID. This fixes DuckDB rejecting
+  supersession updates to indexed status and foreign-key columns after audit
+  references exist. Existing migrations and rule versions remain unchanged.
+
 ### Added
 
 - Schema migration `0007_agents`: append-only terminal agent traces and

@@ -137,11 +137,11 @@ class DuckDBCheckRepository:
                     unchanged += 1
                     continue
                 self.connection.execute(
-                    "INSERT INTO findings (finding_key, rule_id, rule_version, "
-                    "id_documento, severity, amount, evidence_json, status, "
+                    "INSERT INTO finding_records (finding_key, rule_id, rule_version, "
+                    "id_documento, severity, amount, evidence_json, "
                     "run_id, step_id, source_file_id, "
                     "record_sha256, code_commit, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)",
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     [
                         finding.finding_key,
                         rule_id,
@@ -168,9 +168,10 @@ class DuckDBCheckRepository:
             for (key,) in active_keys:
                 if str(key) not in keys:
                     self.connection.execute(
-                        "UPDATE findings SET status = 'superseded', superseded_at = ?, "
-                        "superseded_by_run_id = ? WHERE finding_key = ?",
-                        [finished_at, run_id, key],
+                        "INSERT INTO finding_supersessions "
+                        "(finding_key, superseded_at, superseded_by_run_id) "
+                        "VALUES (?, ?, ?)",
+                        [key, finished_at, run_id],
                     )
                     superseded += 1
             self.connection.execute("COMMIT")
