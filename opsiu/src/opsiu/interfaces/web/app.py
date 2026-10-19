@@ -267,6 +267,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
             return {
                 "detail": detail,
+                "rule_basis": document.fundamento
+                if document is not None and matches
+                else None,
                 "rule_text": document.body
                 if document is not None and matches
                 else None,

@@ -17,3 +17,31 @@ R$ {{ value|string|replace('.', ',') }}
 {% set classes = {'aprovado': 'badge-approved', 'rejeitado': 'badge-rejected', 'revisar': 'badge-medium'} %}
 <span class="badge {{ classes.get(value, 'badge-neutral') }}">{{ labels.get(value, 'Sem decisão') }}</span>
 {%- endmacro %}
+
+
+{% macro opinion(output, featured=false) -%}
+<div class="opinion-content">
+  {% if not featured %}<h4>Fundamento</h4>{% endif %}
+  <div class="basis-prose">{% for paragraph in output.get('fundamento', '').split('\n') %}{% if paragraph.strip() %}<p>{{ paragraph }}</p>{% endif %}{% endfor %}</div>
+  <dl class="opinion-summary">
+    <div><dt>Recomendação do agente</dt><dd>{{ {'manter': 'Manter o achado para análise', 'revisar': 'Revisar as evidências', 'descartar': 'Considerar o descarte do achado'}.get(output.get('recomendacao'), 'Não informada') }}</dd></div>
+    <div><dt>Confiança</dt><dd>{{ {'alta': 'Alta', 'media': 'Média', 'baixa': 'Baixa'}.get(output.get('confianca'), 'Não informada') }}</dd></div>
+  </dl>
+  {% if not featured %}
+  <h4>Evidências citadas</h4>
+  <ul class="annotation-evidence">{% for item in output.get('evidencias_citadas', []) %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro invoice_review(output) -%}
+<dl class="metadata">
+  {% for key, label in [('emitente', 'Emitente'), ('cnpj', 'CNPJ'), ('data', 'Data de emissão'), ('valor', 'Valor'), ('descricao', 'Descrição')] %}
+  <div><dt>{{ label }}</dt><dd>{% if output.get(key) is not none %}{% if key == 'valor' %}{{ money(output[key]) }}{% else %}{{ output[key] }}{% endif %}{% else %}Não informado{% endif %}</dd></div>
+  {% endfor %}
+</dl>
+{% for key, label in [('divergencias', 'Divergências apontadas'), ('limitacoes', 'Limitações da leitura')] %}
+<h4>{{ label }}</h4>
+<ul class="annotation-evidence">{% for item in output.get(key, []) %}<li>{{ item }}</li>{% else %}<li>Nenhuma registrada.</li>{% endfor %}</ul>
+{% endfor %}
+{%- endmacro %}

@@ -161,6 +161,11 @@ def test_list_filters_detail_escape_and_local_htmx(workspace: Path) -> None:
         assert DUPLICATE in minimum.text and KEY not in minimum.text
         detail = client.get(f"/findings/{KEY}")
         assert detail.status_code == 200
+        assert detail.text.index('id="basis-heading"') < detail.text.index(
+            'class="breadcrumb"'
+        )
+        assert "Recomendação do agente" in detail.text
+        assert "Dados completos do parecer (JSON)" in detail.text
         assert "&lt;script&gt;alert(1)&lt;/script&gt;" in detail.text
         assert "<script>alert(1)</script>" not in detail.text
         assert "<img src=x" not in detail.text

@@ -193,3 +193,15 @@ pre { max-height: 34rem; margin: 1rem 0 0; padding: 1rem; border: 1px solid #e0e
   pre { max-height: none; }
   a { color: inherit; }
 }
+
+/* The explanation leads the page; audit payloads stay available on demand. */
+.finding-basis { border-top: 4px solid var(--green); margin-bottom: 2rem; }
+.finding-basis h1 { margin: 0.25rem 0 0.75rem; }
+.basis-prose { max-width: 82ch; font-family: inherit; font-size: 1rem; line-height: 1.85; overflow-wrap: anywhere; }
+.basis-prose p { margin: 0 0 1rem; }
+.opinion-summary { display: flex; flex-wrap: wrap; gap: 1rem 3rem; padding: 1rem 0; margin: 0.75rem 0; border-top: 1px solid var(--line); }
+.opinion-summary dt { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.3rem; }
+.opinion-summary dd { margin: 0; font-weight: 600; }
+.opinion-content h4, .annotation h4 { margin: 1.25rem 0 0.6rem; }
+.annotation-evidence { padding-left: 1.3rem; line-height: 1.7; overflow-wrap: anywhere; }
+.annotation-evidence li { padding-left: 0.25rem; margin-bottom: 0.65rem; }

@@ -1,9 +1,27 @@
 {% extends "base.html" %}
-{% from "macros.html" import money, timestamp, severity %}
+{% from "macros.html" import money, timestamp, severity, opinion, invoice_review %}
 {% set record = detail.record %}
 {% set finding = record.finding %}
 {% block title %}{{ finding.rule_id }} · Documento {{ finding.id_documento }}{% endblock %}
 {% block content %}
+{% set latest = namespace(opinion=none) %}
+{% for annotation in detail.annotations|reverse %}
+  {% if latest.opinion is none and annotation.kind == 'parecer' %}{% set latest.opinion = annotation %}{% endif %}
+{% endfor %}
+<section class="panel finding-basis" aria-labelledby="basis-heading">
+  <p class="eyebrow">Por que este achado foi sinalizado · {{ finding.rule_id }} · Documento {{ finding.id_documento }}</p>
+  <h1 id="basis-heading">Fundamento</h1>
+  <p class="muted">O fundamento explica o critério aplicado, as evidências que sustentam o achado e os limites da análise.</p>
+  {% if latest.opinion %}
+    {{ opinion(latest.opinion.output, true) }}
+    <p class="small muted">Explicação do agente{% if latest.opinion.model == 'scripted' %} · Simulado{% endif %} · {{ timestamp(latest.opinion.created_at) }}. A decisão cabe ao revisor.</p>
+  {% elif rule_basis %}
+    <p class="basis-prose">{{ rule_basis }}</p>
+    <p class="small muted">Fundamento da regra aplicada. Ainda não há explicação do agente para este achado.</p>
+  {% else %}
+    <p class="notice notice-warning">Ainda não há explicação registrada, e o fundamento desta versão da regra não está disponível.</p>
+  {% endif %}
+</section>
 <nav class="breadcrumb" aria-label="Localização"><a href="/findings">← Achados pendentes</a><span>Documento {{ finding.id_documento }}</span></nav>
 <div class="page-heading detail-heading">
   <div>
@@ -67,7 +85,15 @@
           {% if annotation.model == 'scripted' %}<span class="badge badge-neutral">Simulado</span>{% endif %}
         </div>
         <p class="small muted">Modelo: {{ annotation.model }} · Instrução versão {{ annotation.prompt_version }} · {{ timestamp(annotation.created_at) }}</p>
-        <pre class="evidence-text" tabindex="0">{{ annotation.output|tojson(indent=2) }}</pre>
+        {% if annotation.kind == 'parecer' %}
+          {{ opinion(annotation.output) }}
+        {% else %}
+          {{ invoice_review(annotation.output) }}
+        {% endif %}
+        <details class="audit-details">
+          <summary>Dados completos do parecer (JSON)</summary>
+          <pre class="evidence-text" tabindex="0">{{ annotation.output|tojson(indent=2) }}</pre>
+        </details>
         <details class="audit-details">
           <summary>Identificadores do parecer</summary>
           <dl class="metadata">
