@@ -1,0 +1,19 @@
+sequenceDiagram
+  participant CLI
+  participant Runs
+  participant UseCase
+  participant Ledger
+  participant Log as JSONL
+  CLI->>Runs: start(command, args, settings_hash, code_commit)
+  Runs->>Ledger: insert run (status running)
+  Runs->>Log: open runs/<run_id>/events.jsonl
+  loop each step
+    UseCase->>Runs: step(name)
+    Runs->>Ledger: insert step
+    UseCase->>Runs: event(kind, attributes)
+    Runs->>Ledger: insert event
+    Runs->>Log: append event
+  end
+  UseCase-->>Runs: finish(status, counters)
+  Runs->>Ledger: update run
+  Runs->>Log: write manifest.json and report.md

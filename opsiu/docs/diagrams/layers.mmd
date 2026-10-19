@@ -1,0 +1,32 @@
+flowchart TB
+  subgraph interfaces [Interfaces]
+    cli[CLI Typer]
+    web[Web FastAPI]
+  end
+  subgraph application [Application]
+    runs[Run lifecycle]
+    usecases[ingest check fetch explain review report]
+    ports[Ports]
+  end
+  subgraph domain [Domain]
+    models[Models]
+    rules[Rules registry]
+    policies[Policies]
+  end
+  subgraph adapters [Adapters]
+    duck[DuckDB repo and ledger]
+    files[JSON source and JSONL log]
+    ext[PDF CNPJ TSE]
+    agents[AgentRig Codex]
+  end
+  cli --> usecases
+  web --> usecases
+  usecases --> runs
+  usecases --> ports
+  usecases --> rules
+  rules --> models
+  rules --> policies
+  duck -. implements .-> ports
+  files -. implements .-> ports
+  ext -. implements .-> ports
+  agents -. implements .-> ports
