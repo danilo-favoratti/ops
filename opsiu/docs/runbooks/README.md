@@ -13,7 +13,7 @@ their use cases become available; the final documentation pass completes them.
   runbook planned as `db.md`.
 - `runs list` and `runs show <id> [--events]`: inspect execution history;
   runbook planned as `runs.md`.
-- `ingest`: stream yearly expense files into the database; planned as `ingest.md`.
+- [`ingest`](ingest.md): stream yearly expense files into the database.
 - `check`: apply deterministic rules; planned as `check.md`.
 - `fetch tse|cnpj|pdf`: capture and load external evidence; planned as `fetch.md`.
 - `explain`: annotate sampled findings with agents; planned as `explain.md`.

@@ -1,10 +1,12 @@
 """Typed ports and records shared by run orchestration and ledger adapters."""
 
 from collections.abc import Iterator
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
 
+from opsiu.domain.models import Despesa
 from opsiu.domain.policies import Adicional, Cap, CotaUF
 
 type JsonValue = (
@@ -112,4 +114,24 @@ class ExpenseSource(Protocol):
 
     def __iter__(self) -> Iterator[tuple[dict[str, object], str]]:
         """Yield raw records and their shared canonical SHA-256 values."""
+        ...
+
+
+class ExpenseStage(Protocol):
+    def add_batch(self, expenses: tuple[Despesa, ...]) -> None: ...
+
+    def publish(
+        self, metadata: ExpenseSourceMetadata, *, ingested_at: datetime
+    ) -> None:
+        """Atomically publish the complete source and rebuild current deputies."""
+        ...
+
+
+class ExpenseRepository(Protocol):
+    def current_source_sha256(self, source_year: int) -> str | None: ...
+
+    def stage(
+        self, *, source_file_id: str, source_year: int, run_id: str, step_id: str
+    ) -> AbstractContextManager[ExpenseStage]:
+        """Roll back all staged rows unless explicitly published successfully."""
         ...
