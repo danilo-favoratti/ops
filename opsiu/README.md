@@ -158,4 +158,18 @@ uv run pytest -m "not eval"
 
 Tests use temporary databases, local HTTP fixtures, synthetic expenses, and
 scripted agents. No production yearly file is read in full by the tests.
-Evaluation and CI steps are tracked separately in the implementation plan.
+
+Run the recommendation evaluation separately:
+
+```sh
+AGENTRIG_RUN_LIVE=0 uv run pytest -m eval -s
+```
+
+The default budget scores up to 20 of 50 synthetic cases. For the complete
+scripted baseline, set `OPSIU_AGENTS__MAX_CALLS_PER_RUN=50` on the same command.
+Every evaluation creates an isolated database and source fixture inside its run,
+with private agent traces, `eval_results.json`, `eval.md`, and the normal run
+ledger. It does not use the production database. See [the evaluation guide](evals/README.md)
+for label assumptions, coverage, scoring, and the explicit live gate.
+
+The CI step is tracked separately in the implementation plan.

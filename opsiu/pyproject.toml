@@ -52,7 +52,7 @@ exclude = ["*.md"]
 [tool.mypy]
 strict = true
 mypy_path = "src"
-files = ["src", "tests"]
+files = ["src", "tests", "evals"]
 python_version = "3.12"
 
 # ijson has no bundled type information; its boundary is typed in json_source.py.
@@ -62,6 +62,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "--strict-markers"
 markers = [
     "unit: isolated domain and application tests",

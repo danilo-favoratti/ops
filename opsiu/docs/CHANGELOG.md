@@ -19,6 +19,13 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- A 50-case synthetic recommendation evaluation set and native AgentRig
+  agreement grader. Evaluations use isolated, audited runs, bounded sampling,
+  private traces, and separate agreement and valid-output coverage metrics.
+  Scripted mode is the default; labels are never supplied to the agent.
+  [Dataset assumptions and usage](../evals/README.md) distinguish the constant
+  scripted baseline from a live model evaluation. No rule, schema, or prompt
+  version changes are introduced by this evaluation harness.
 - Automatic Portuguese `report.md` for every finalized run, including failed and
   aborted runs. Reports summarize public ledger metadata, steps, durations,
   counters, failures, and artifact links without reading private agent content.

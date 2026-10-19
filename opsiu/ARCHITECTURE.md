@@ -89,13 +89,16 @@ opsiu/
     postmortem-template.md
     CHANGELOG.md                 # rule version history and schema migrations
   runs/                          # generated: <run_id>/report.md, events.jsonl, manifest.json
+  evals/                         # development-only labels, AgentRig grader, traced runner
   tests/
-    unit/  contract/  integration/
+    unit/  contract/  integration/  eval/
     fixtures/mini_dataset/       # 200 synthetic expense records; external fixtures separate
 ```
 
-The layout above describes the implemented package. The evaluation set and
-graders are the separate Step 7.1 deliverable in [IMPLEMENTATION.md](IMPLEMENTATION.md).
+The layout above describes the implemented package. `evals/` is development
+support, not a second installed package. Its runner composes the existing ports
+and adapters with a run-local database; it never writes to the configured
+production database. See [the evaluation guide](evals/README.md).
 
 ```mermaid
 flowchart TB
@@ -346,7 +349,7 @@ is part of every run manifest.
 | unit | domain models, each rule against the mini dataset, policies | `unit` |
 | contract | ports vs adapters, agent codecs with scripted runtimes, registry vs `.llms/rules` | `contract` |
 | integration | full CLI commands on the fixture dataset in a temp DuckDB | `integration` |
-| eval (Step 7.1) | agent recommendations vs labeled findings with graders | `eval` (opt-in) |
+| eval | agent recommendations vs synthetic labels with AgentRig graders | `eval` (opt-in) |
 
 From `opsiu/`: `uv run ruff check .`, `uv run ruff format --check .`,
 `uv run mypy` (strict in `pyproject.toml`), `uv run pytest -m "not eval"`.
