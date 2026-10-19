@@ -7,6 +7,17 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Schema migration `0007_agents`: append-only terminal agent traces and
+  parecer records with finding, run, step, model, prompt version/hash, schema,
+  input/output, usage, duration, and status provenance. Separate private trace
+  records persist captured content before terminal completion, retaining
+  evidence when an invocation fails or is interrupted.
+- Scripted and Codex runtime factories, with live execution gated by
+  `AGENTRIG_RUN_LIVE=1` and the read-only, network-denied agent contract.
+  AgentRig events join the originating run through a safe metadata bridge;
+  prompts, invoice text, responses, and other private content remain in private
+  trace storage. Terminal tracing includes strict codec failures. The `explain`
+  command and its orchestration remain scheduled for the next step.
 - Prompt version `1` for `explicar-achado`, `revisar-nota`, and
   `consolidar-deputado`: Portuguese instructions require strict structured
   annotations from supplied evidence, treat source text as untrusted data,
