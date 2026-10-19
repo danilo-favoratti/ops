@@ -1,4 +1,4 @@
-# Export active findings
+# Export findings and approved final reports
 
 ## Purpose and inputs
 
@@ -13,9 +13,10 @@ selected by settings. It requires the migrated findings and source schema.
 `OPSIU_CONFIG` and nested environment overrides work as for the other commands;
 paths are relative to the working directory.
 
-This is an export of unreviewed active findings. The approved-only `report final`
-command belongs to a later implementation step and is not available yet. This
-command does not ingest inputs, rerun checks, or record approval decisions.
+`report findings` includes active findings without filtering human decisions.
+Use `report final` to export only active findings whose latest human decision is
+`aprovado`, as described below. Neither command ingests inputs, reruns checks,
+or records approval decisions.
 Inspect the latest [check](check.md) run when interpreting results: a failed rule
 can leave its previous active findings intact.
 
@@ -59,6 +60,62 @@ identifies the original file bytes, while `record_sha256` identifies the
 canonical raw record. `source_record_number` locates the expense within that
 source snapshot.
 
+## Final report over approved findings
+
+After recording human decisions through [review](review.md), run:
+
+```sh
+uv run python3 -m opsiu report final
+```
+
+The final export selects active findings whose latest human decision is
+`aprovado`. A later `rejeitado` or `revisar` decision excludes the finding, and
+superseded findings are excluded even if they were previously approved. An
+agent recommendation never supplies approval. The current decision is ordered
+by decision time and decision ID, matching the review view.
+
+Selection reads one database snapshot through a single cursor, retaining the
+original expense context and each selected approval. It groups output by deputy
+while buffering only that deputy's findings. This command does not run agents,
+change decisions, or migrate the database; apply `db migrate` separately when
+the required schema is missing.
+
+Each new export run writes these immutable artifacts:
+
+- `final.csv`: UTF-8 CSV with one row per selected finding and exact decimal
+  amounts. It includes the 32 original finding/provenance columns above, followed
+  by `decision_id`, `decision`, `reviewer`, `comment`, `decided_at`,
+  `decision_run_id`, `decision_step_id`, and `pareceres_json`.
+- `final.md`: a Portuguese summary with counts and signaled amounts by rule
+  and version, plus links to the deputy reports.
+- `deputado-{ID}.md`: a Portuguese report for each deputy with selected findings,
+  rule evidence, human approval details, original provenance, and opinion
+  summaries. The filename uses the numeric deputy identifier.
+
+All files live directly in `runs/<run_id>/`, or the configured run-directory
+prefix. Their paths, media types, SHA-256 hashes, and byte sizes are recorded as
+artifacts in the manifest and events. The CLI's final `report.md` path remains
+the reserved ledger-report path described above; `final.md` is the actual final
+audit summary.
+
+The approval columns identify the selected human decision and its own run/step.
+They do not replace the finding's original `run_id`, `step_id`, source hashes,
+or record hash. `pareceres_json` retains all successful `parecer` history for the
+selected finding, with annotation/trace identities, model and prompt version,
+output, and origin metadata. Invoice-reader outputs and consolidated deputy
+agent summaries are not included as opinions. An approved finding without an
+opinion remains eligible and has an empty opinion list.
+
+Opinion recommendations, including `descartar`, remain advisory and do not
+override the selected approval. Scripted opinions are simulated responses;
+exporting them does not turn them into independent evidence. Human approval
+also does not eliminate the overlap and amount-basis limitations below.
+
+A migrated database with no eligible approvals produces a header-only
+`final.csv` and an empty Portuguese `final.md`, with no deputy files. Successful
+runs record `final.exported` and counters `findings_exported`,
+`deputies_exported`, `rules_exported`, and `artifacts_written`.
+
 ## Interpreting totals
 
 Summary amounts are amounts signaled by the rules, not proven or unique losses.
@@ -86,8 +143,14 @@ Use `db migrate` to initialize or update the schema, and use `ingest` and `check
 to populate findings when needed. Exit code `1` indicates operational failures;
 configuration errors exit `2`. A successful export exits `0`.
 
-Rerun `report findings` after resolving an error or when a new export is needed.
+The same failure and exit-code behavior applies to `report final`. Incomplete
+artifact writes are removed; already completed artifacts remain recorded if a
+later export stage fails. Inspect the run status before treating a set of files
+as a completed report.
+
+Rerun either export after resolving an error or when a new report is needed.
 Every attempt uses a distinct run directory, retaining earlier artifacts. Record
-ordering is deterministic; changing the active findings changes the exported
-content. The exporter does not alter finding status, evidence, or original
-provenance.
+ordering is deterministic. Changed active findings, current decisions, or opinion
+history can change a later final export, while earlier runs retain their original
+snapshot. The exporters do not alter finding status, decisions, evidence, or
+original provenance.

@@ -676,3 +676,16 @@ class ReviewRepository(Protocol):
     def get_finding(self, finding_key: str) -> ReviewDetail | None: ...
 
     def append_decision(self, decision: Decision) -> None: ...
+
+
+@dataclass(frozen=True)
+class FinalReportRecord:
+    record: FindingExportRecord
+    decision: Decision
+    pareceres: tuple[ReviewAnnotation, ...]
+
+
+class FinalReportReader(Protocol):
+    def approved_findings(self) -> Iterator[FinalReportRecord]:
+        """Stream one consistent snapshot, ordered by original deputy and finding."""
+        ...

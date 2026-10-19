@@ -22,8 +22,8 @@ their use cases become available; the final documentation pass completes them.
   findings using scripted responses by default or explicitly enabled Codex.
 - [`review [--port 8765]`](review.md): inspect original evidence and record
   append-only human decisions through the local Portuguese interface.
-- [`report findings`](report.md): export active, unreviewed findings as CSV and
-  a Portuguese summary. The approved-only `report final` command is planned.
+- [`report findings` and `report final`](report.md): export all active findings
+  or only those currently approved, with provenance and Portuguese summaries.
 
 For incidents, use the [post-mortem template](../postmortem-template.md). Design
 decisions are recorded in [ADRs](../adr/); version changes are recorded in the

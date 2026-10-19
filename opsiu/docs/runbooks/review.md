@@ -95,9 +95,9 @@ absent, must match the local page's origin when supplied.
 An invalid host returns `400`; invalid CSRF tokens or origins return `403`.
 
 Agent recommendations never change this queue automatically. A recommendation
-to discard a finding still requires a human decision. The review interface
-records approval; the approved-only final export is introduced separately in
-the implementation plan.
+to discard a finding still requires a human decision. After review, use
+[`report final`](report.md) to export active findings whose latest human decision
+is `aprovado`, with decision provenance and opinion summaries.
 
 ## Runs, failures, and verification
 
