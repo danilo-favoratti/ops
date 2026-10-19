@@ -28,7 +28,7 @@
     status.className = "small muted";
     status.setAttribute("role", "status");
     results.hidden = true;
-    wrapper.append(tags, input, results, status);
+    wrapper.append(input, results, tags, status);
     select.after(wrapper);
     select.hidden = true;
 
