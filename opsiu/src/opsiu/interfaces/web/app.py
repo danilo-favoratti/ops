@@ -22,7 +22,7 @@ from opsiu.domain.errors import DomainError
 from opsiu.domain.findings import evidence_json
 from opsiu.domain.models import Competencia
 from opsiu.domain.rules import registry
-from opsiu.interfaces.web.presentation import ExplanationDisplay
+from opsiu.interfaces.web.presentation import ExplanationDisplay, money
 from opsiu.interfaces.web.runtime import RequestScope
 from opsiu.interfaces.web.security import (
     COOKIE,
@@ -76,7 +76,7 @@ def _value(value: object) -> str:
     if isinstance(value, Competencia):
         return f"{value.mes:02d}/{value.ano}"
     if isinstance(value, Decimal):
-        return format(value, ".2f").replace(".", ",")
+        return money(value)
     if isinstance(value, Enum):
         return str(value.value)
     return str(value)
@@ -117,6 +117,7 @@ def _audited[T](
 def create_app(settings: Settings | None = None) -> FastAPI:
     configured = settings if settings is not None else Settings()
     templates = Jinja2Templates(directory=_DIRECTORY / "templates")
+    templates.env.filters["brl"] = money
     security = FormSecurity()
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 

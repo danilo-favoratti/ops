@@ -45,3 +45,40 @@ def test_unknown_codes_identifiers_and_invalid_dates_are_preserved() -> None:
 def test_names_are_literal_not_regex_replacements() -> None:
     formatter = ExplanationDisplay("R01", "Regra", 3605, r"Nome \1 <script>", 120, None)
     assert formatter('parlamentar "3605"') == r"parlamentar Nome \1 <script>"
+
+
+def test_currency_format_is_shared_by_templates_and_expense_fields() -> None:
+    from decimal import Decimal
+
+    from jinja2 import Environment, FileSystemLoader
+
+    from opsiu.interfaces.web.app import _DIRECTORY, _value
+    from opsiu.interfaces.web.presentation import money
+
+    env = Environment(loader=FileSystemLoader(_DIRECTORY / "templates"))
+    env.filters["brl"] = money
+    template = env.from_string(
+        '{% from "macros.html" import money %}{{ money(value) }}'
+    )
+    for value, expected in [
+        ("1348500.00", "R$ 1.348.500,00"),
+        ("0", "R$ 0,00"),
+        ("-1234.56", "R$ -1.234,56"),
+        ("12.5", "R$ 12,50"),
+    ]:
+        assert template.render(value=Decimal(value)) == expected
+        assert _value(Decimal(value)) == expected
+        assert money(value) == expected
+
+
+def test_prose_money_with_and_without_quotes() -> None:
+    assert display()('O valor líquido fornecido é "10025.90".') == (
+        "O valor líquido fornecido é R$ 10.025,90."
+    )
+    assert display()("valor envolvido 1348500.00") == "valor envolvido R$ 1.348.500,00"
+
+
+def test_accounting_comparison_keeps_amounts_and_meaning() -> None:
+    assert display()('"13500.00" menos a glosa informada de "3474.15"') == (
+        "R$ 13.500,00 menos a glosa informada de R$ 3.474,15"
+    )

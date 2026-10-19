@@ -1,5 +1,5 @@
 {% macro money(value) -%}
-R$ {{ value|string|replace('.', ',') }}
+{{ value|brl }}
 {%- endmacro %}
 
 {% macro timestamp(value) -%}

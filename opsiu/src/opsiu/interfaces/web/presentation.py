@@ -33,9 +33,17 @@ class ExplanationDisplay:
         for pattern, label in replacements:
             text = re.sub(pattern, lambda _: label, text, flags=re.IGNORECASE)
         text = re.sub(
-            r"\b(total|limite|valor envolvido|valor líquido(?: fornecido)?|"
-            r'glosa(?: informada)?(?: de)?|resulta em)\s+["\'](-?\d+\.\d{2})["\']',
-            lambda match: f"{match[1]} {money(match[2])}",
+            r'["\'](-?\d+\.\d{2})["\'](?= menos a glosa\b)',
+            lambda match: money(match[1]),
+            text,
+            flags=re.IGNORECASE,
+        )
+        text = re.sub(
+            r"\b(total|limite|valor(?: envolvido| líquido| do documento)?"
+            r"(?: fornecido)?|"
+            r"glosa(?: informada)?|resulta em)((?: (?:é|de))?\s+)"
+            r'["\']?(-?\d+\.\d{2})(?!\d)["\']?',
+            lambda match: f"{match[1]}{match[2]}{money(match[3])}",
             text,
             flags=re.IGNORECASE,
         )
@@ -51,7 +59,7 @@ class ExplanationDisplay:
         )
 
 
-def money(value: str) -> str:
+def money(value: str | Decimal) -> str:
     formatted = f"{Decimal(value):,.2f}"
     return "R$ " + formatted.translate(str.maketrans(",.", ".,"))
 
