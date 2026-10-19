@@ -3,7 +3,7 @@
 import re
 import unicodedata
 
-from opsiu.domain.policies import R12_COMMON_SURNAMES
+from opsiu.domain.policies import R12_COMMON_SURNAMES, R12_EXCLUDED_GIVEN_NAMES
 
 
 def normalize_name(value: str) -> str:
@@ -28,5 +28,8 @@ def surname_tokens(name: str) -> frozenset[str]:
     return frozenset(
         token
         for token in normalize_name(name).split()[1:]
-        if len(token) >= 4 and token.isalpha() and token not in R12_COMMON_SURNAMES
+        if len(token) >= 4
+        and token.isalpha()
+        and token not in R12_COMMON_SURNAMES
+        and token not in R12_EXCLUDED_GIVEN_NAMES
     )

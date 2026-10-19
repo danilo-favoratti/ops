@@ -293,7 +293,7 @@ def test_r12_zero_documents_are_separate_records_with_stable_history(
         assert len(exported) == 3
         assert db.execute(
             "SELECT rule_version,amount FROM findings WHERE id_documento=209910003"
-        ).fetchone() == ("2", Decimal("20.00"))
+        ).fetchone() == ("3", Decimal("20.00"))
         names = {
             record.nome_parlamentar
             for record in exported

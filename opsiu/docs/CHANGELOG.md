@@ -7,6 +7,11 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Fixed
 
+- R12 version 3 excludes the 16 reviewer-selected given-name tokens on both
+  sides of surname matching, after accent/case normalization. Independent eligible
+  surnames still match; old findings, explanations and decisions remain immutable.
+  The explicit policy is documented and covered by regression tests.
+
 - R12 version 2 groups valid document accounting occurrences and identifies
   nonpositive document IDs by annual CEAP source year plus original record hash,
   preserving separate people/suppliers and stable replay without altering source IDs.

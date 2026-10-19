@@ -1,6 +1,6 @@
 ---
 id: R12
-version: "2"
+version: "3"
 severidade: revisar
 fundamento: "bens ou serviços adquiridos de empresa ou entidade da qual o deputado ou parente até o terceiro grau ou servidor da Câmara seja proprietário ou detentor de qualquer participação;"
 ---
@@ -105,6 +105,49 @@ explícita desta versão e deve corresponder exatamente à implementação.
 ]
 ```
 <!-- surname-stoplist:end -->
+
+## Exclusão de prenomes (versão 3)
+
+Além dos sobrenomes comuns, excluir os seguintes termos por política explícita
+aprovada pelo revisor. Aplicar a exclusão aos nomes de parlamentares e de sócios,
+após normalização de acentos e maiúsculas, independentemente da posição.
+Esta lista não pretende classificar todos os prenomes da língua portuguesa;
+termos não listados continuam sujeitos à revisão humana.
+
+<!-- given-name-stoplist:start -->
+```json
+[
+  "ANTONIO",
+  "AUGUSTO",
+  "CARLOS",
+  "CESAR",
+  "CRISTINA",
+  "EDUARDO",
+  "FABIANO",
+  "HENRIQUE",
+  "JOSE",
+  "LUCAS",
+  "LUIZ",
+  "PAULA",
+  "PAULO",
+  "ROBERTO",
+  "TADEU",
+  "VICTOR"
+]
+```
+<!-- given-name-stoplist:end -->
+
+Uma coincidência apenas em `CARLOS` ou `JOSÉ`, por exemplo, não gera achado.
+Se houver outro sobrenome elegível, preservar essa correspondência: `ANA
+HENRIQUE VIEIRA` e `BEATRIZ HENRIQUE VIEIRA` continuam compartilhando `VIEIRA`,
+mas a evidência não inclui `HENRIQUE`. Não ampliar a exclusão automaticamente
+para nomes semelhantes ou termos não aprovados.
+
+A versão 3 cria novas chaves de achado em uma nova execução de `check`. Achados,
+pareceres e decisões da versão 2 são preservados; rejeições humanas anteriores
+não são copiadas automaticamente para evidências da nova versão. Assim, um
+achado anteriormente rejeitado em lote por `HENRIQUE` pode reaparecer para
+revisão se também houver correspondência válida em `VIEIRA`.
 
 ## Exemplos de correspondência
 

@@ -12,7 +12,7 @@ from opsiu.domain.text import normalize_name, surname_tokens
 class R12SobrenomeSocio:
     descriptor = RuleDescriptor(
         id="R12",
-        version="2",
+        version="3",
         severity="revisar",
         title="Sobrenome compartilhado com sócio pessoa física",
         fundamento=(

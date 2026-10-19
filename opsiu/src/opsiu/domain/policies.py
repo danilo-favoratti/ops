@@ -63,6 +63,27 @@ R12_COMMON_SURNAMES = frozenset(
         "SOUZA",
     }
 )
+# Explicitly excluded by the reviewer; scoped to the R12 name heuristic.
+R12_EXCLUDED_GIVEN_NAMES = frozenset(
+    {
+        "ANTONIO",
+        "AUGUSTO",
+        "CARLOS",
+        "CESAR",
+        "CRISTINA",
+        "EDUARDO",
+        "FABIANO",
+        "HENRIQUE",
+        "JOSE",
+        "LUCAS",
+        "LUIZ",
+        "PAULA",
+        "PAULO",
+        "ROBERTO",
+        "TADEU",
+        "VICTOR",
+    }
+)
 GROCERY_CNAES = frozenset({"4711301", "4711302", "4712100"})
 GROCERY_NAME_TOKENS = frozenset(
     {

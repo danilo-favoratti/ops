@@ -134,3 +134,75 @@ def test_r12_excludes_institutional_leadership_but_keeps_real_deputy_without_cpf
     assert len(candidates) == 1
     result = R12SobrenomeSocio().evaluate(candidates[0])
     assert result is not None and result.id_documento == 2
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Carlos",
+        "Paula",
+        "Luiz",
+        "Augusto",
+        "Antônio",
+        "Henrique",
+        "César",
+        "Cristina",
+        "Lucas",
+        "Victor",
+        "Fabiano",
+        "Paulo",
+        "José",
+        "Eduardo",
+        "Roberto",
+        "Tadeu",
+    ],
+)
+def test_r12_reviewer_excluded_given_names_do_not_trigger(name: str) -> None:
+    candidate = row()
+    candidate["nome_parlamentar"] = f"Ana {name}"
+    candidate["socios"] = [{"nome": f"Beatriz {name.upper()}", "qualificacao": "49"}]
+    assert R12SobrenomeSocio().evaluate(candidate) is None
+    assert surname_tokens(f"Dr. {name}") == frozenset()
+    assert surname_tokens(f"Dra. {name.upper()}") == frozenset()
+
+
+def test_r12_keeps_independent_surname_and_only_eligible_partner_evidence() -> None:
+    candidate = row()
+    candidate["nome_parlamentar"] = "Ana Henrique Vieira"
+    candidate["socios"] = [
+        {"nome": "Beatriz Henrique Vieira", "qualificacao": "49"},
+        {"nome": "Beatriz Henrique", "qualificacao": "49"},
+    ]
+    result = R12SobrenomeSocio().evaluate(candidate)
+    assert result is not None
+    assert result.evidence["tokens_compartilhados"] == ["VIEIRA"]
+    assert result.evidence["socios"] == [
+        {
+            "nome": "Beatriz Henrique Vieira",
+            "qualificacao": "49",
+            "tokens_compartilhados": ["VIEIRA"],
+        }
+    ]
+    assert result.evidence["parentesco_comprovado"] is False
+    assert result.amount == Decimal("12.34")
+    assert surname_tokens("Ana Carlota Luiza") == frozenset({"CARLOTA", "LUIZA"})
+    assert R12SobrenomeSocio.descriptor.version == "3"
+
+
+def test_documented_given_name_exclusions_match_reviewed_policy() -> None:
+    from opsiu.domain.policies import R12_EXCLUDED_GIVEN_NAMES
+
+    expected = frozenset(
+        "CARLOS PAULA LUIZ AUGUSTO ANTONIO HENRIQUE CESAR CRISTINA LUCAS "
+        "VICTOR FABIANO PAULO JOSE EDUARDO ROBERTO TADEU".split()
+    )
+    assert R12_EXCLUDED_GIVEN_NAMES == expected
+    document = (
+        Path(__file__).parents[2] / ".llms" / "rules" / "R12-sobrenome-socio.md"
+    ).read_text()
+    block = document.split("<!-- given-name-stoplist:start -->", 1)[1].split(
+        "<!-- given-name-stoplist:end -->", 1
+    )[0]
+    assert json.loads(block.split("```json", 1)[1].split("```", 1)[0]) == sorted(
+        expected
+    )
