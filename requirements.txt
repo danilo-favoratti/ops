@@ -1,0 +1,2 @@
+agentrig @ git+https://github.com/mtmoreira/agentrig.git@cc585b46f5365cf1997f71704302d477dd5a7685
+openai-codex==0.144.4
