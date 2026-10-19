@@ -7,6 +7,16 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Rules `R07` and `R14`, version `1`, with medium severity and explicit
+  approximate evidence: shared cumulative annual quota calculation includes
+  zero-spend months, dated monthly policies, and no carryover between years.
+  The finite nonnegative `rules.quota_margin_percent` setting defaults to 5;
+  thresholds remain unrounded and equality does not trigger. Finding amounts
+  retain the full excess above the base allowance and overlap across months.
+  R07 uses state quotas for regular deputies and documents missing individual
+  role history; R14 uses one explicitly resolved leadership addition with zero
+  state-quota base. Unknown leadership roles or missing dated policies fail
+  before finding publication. Portuguese rule documents explain these limits.
 - Rules `R01`–`R06`, version `1`: monthly caps for vehicle rental (category
   `120`), taxi/tolls/parking (`122`), fuel/lubricants (`3`), security (`8`),
   courses/events (`137`), and housing supplementation (`40`). Each sums current

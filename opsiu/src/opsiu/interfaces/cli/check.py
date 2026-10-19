@@ -11,6 +11,7 @@ from opsiu.application.check import check as check_rules
 from opsiu.application.runs import ConfigurationError
 from opsiu.domain.rules import registry
 from opsiu.domain.rules.base import Rule
+from opsiu.domain.rules.quota import QuotaEvaluator
 from opsiu.interfaces.cli.runtime import command_run
 
 
@@ -39,7 +40,12 @@ def check(
 ) -> None:
     """Executar as regras determinísticas selecionadas."""
     with command_run("check", {"regras": regras, "dry_run": dry_run}) as context:
-        rules = _selected(regras)
+        rules = tuple(
+            type(rule)(context.settings.rules.quota_margin_percent)
+            if isinstance(rule, QuotaEvaluator)
+            else rule
+            for rule in _selected(regras)
+        )
         with context.run.step("preparar_banco") as preparation:
             connection = context.open_database(create=True)
             assert connection is not None

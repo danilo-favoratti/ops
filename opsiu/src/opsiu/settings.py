@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from decimal import Decimal
 from pathlib import Path
 from typing import Annotated, Self
 
@@ -56,6 +57,12 @@ class SamplingSettings(SettingsSection):
     per_rule: int = Field(default=20, ge=1)
 
 
+class RuleSettings(SettingsSection):
+    quota_margin_percent: Decimal = Field(
+        default=Decimal("5"), ge=0, allow_inf_nan=False
+    )
+
+
 class AgentSettings(SettingsSection):
     model: NonemptyString = "gpt-5.6-terra"
     max_calls_per_run: int = Field(default=20, ge=0)
@@ -91,6 +98,7 @@ class Settings(BaseSettings):
     paths: PathSettings = Field(default_factory=PathSettings)
     years: YearSettings = Field(default_factory=YearSettings)
     sampling: SamplingSettings = Field(default_factory=SamplingSettings)
+    rules: RuleSettings = Field(default_factory=RuleSettings)
     agents: AgentSettings = Field(default_factory=AgentSettings)
     review: ReviewSettings = Field(default_factory=ReviewSettings)
     external: ExternalSettings = Field(default_factory=ExternalSettings)

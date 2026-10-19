@@ -11,6 +11,8 @@ from opsiu.domain.rules.r03_combustiveis_lubrificantes import (
 from opsiu.domain.rules.r04_seguranca import R04Seguranca
 from opsiu.domain.rules.r05_cursos_eventos import R05CursosEventos
 from opsiu.domain.rules.r06_auxilio_moradia import R06AuxilioMoradia
+from opsiu.domain.rules.r07_cota_uf import R07CotaUF
+from opsiu.domain.rules.r14_liderancas import R14Liderancas
 
 RULES: tuple[type[Rule], ...] = (
     R01LocacaoVeiculos,
@@ -19,6 +21,8 @@ RULES: tuple[type[Rule], ...] = (
     R04Seguranca,
     R05CursosEventos,
     R06AuxilioMoradia,
+    R07CotaUF,
+    R14Liderancas,
 )
 
 
