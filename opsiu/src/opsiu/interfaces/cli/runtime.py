@@ -96,7 +96,6 @@ def command_run(command: str, arguments: dict[str, JsonValue]) -> Iterator[Comma
         except Exception:
             failed = True
         finally:
-            # Full report rendering is introduced in implementation step 6.2.
             typer.echo(f"Relatório: {runs_dir / run.run_id / 'report.md'}")
     if run.status == "aborted":
         raise typer.Exit(2)

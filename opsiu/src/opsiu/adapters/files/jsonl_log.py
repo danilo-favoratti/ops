@@ -1,5 +1,6 @@
 """Exclusive run directories, append-only events, manifests, and JSON logging."""
 
+from collections.abc import Generator
 from copy import deepcopy
 from pathlib import Path
 from uuid import UUID
@@ -15,6 +16,7 @@ from opsiu.adapters.run_serialization import (
     step_data,
 )
 from opsiu.application.ports import EventRecord, RunRecord, StepRecord
+from opsiu.application.run_report import render_run_report
 
 
 class JsonlLedger:
@@ -57,17 +59,45 @@ class JsonlLedger:
 
     def finish_run(self, run: RunRecord) -> None:
         self._require_owned(run.run_id)
+        steps = tuple(
+            step for step in self._steps.values() if step.run_id == run.run_id
+        )
         manifest = run_data(run)
-        manifest["steps"] = [
-            step_data(step)
-            for step in self._steps.values()
-            if step.run_id == run.run_id
-        ]
-        with (self.run_dir(run.run_id) / "manifest.json").open(
-            "x", encoding="utf-8"
-        ) as output:
-            output.write(encode_json(manifest) + "\n")
-        self._owned_runs.remove(run.run_id)
+        manifest["steps"] = [step_data(step) for step in steps]
+        try:
+            # Persist the authoritative record even if report generation fails.
+            with (self.run_dir(run.run_id) / "manifest.json").open(
+                "x", encoding="utf-8"
+            ) as output:
+                output.write(encode_json(manifest) + "\n")
+            self._write_report(run, steps)
+        finally:
+            self._owned_runs.remove(run.run_id)
+
+    def _report_events(self, run_id: str) -> Generator[EventRecord, None, None]:
+        with (self.run_dir(run_id) / "events.jsonl").open(encoding="utf-8") as source:
+            for line in source:
+                if line.strip():
+                    yield EVENT_ADAPTER.validate_json(line)
+
+    def _write_report(self, run: RunRecord, steps: tuple[StepRecord, ...]) -> None:
+        path = self.run_dir(run.run_id) / "report.md"
+        created = False
+        events = self._report_events(run.run_id)
+        try:
+            with path.open("x", encoding="utf-8") as output:
+                created = True
+                for chunk in render_run_report(run, steps, events):
+                    output.write(chunk)
+        except BaseException as error:
+            if created:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError as cleanup_error:
+                    error.add_note(f"partial report cleanup failed: {cleanup_error}")
+            raise
+        finally:
+            events.close()
 
     def _require_owned(self, run_id: str) -> None:
         if run_id not in self._owned_runs:

@@ -153,7 +153,7 @@ def test_empty_export_keeps_csv_headers_and_portuguese_limitations(
     assert "Nenhum achado ativo encontrado" in summary
     assert "não representam prejuízo comprovado" in summary
     assert "R07 e R14" in summary and "R09" in summary
-    assert not (directory / "report.md").exists()
+    assert (directory / "report.md").is_file()
     assert run.counters["findings_exported"] == 0
 
 
