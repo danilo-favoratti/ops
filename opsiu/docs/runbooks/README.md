@@ -18,7 +18,8 @@ their use cases become available; the final documentation pass completes them.
 - [`fetch tse`, `fetch cnpj`, and `fetch pdf --sample`](fetch.md): load external
   datasets for R11–R13 and capture sampled invoice PDFs with versioned text
   extraction and verified cache reuse.
-- `explain`: annotate sampled findings with agents; planned as `explain.md`.
+- [`explain`](explain.md): append bounded, traced annotations to sampled
+  findings using scripted responses by default or explicitly enabled Codex.
 - `review`: launch the local approval application; planned as `review.md`.
 - [`report findings`](report.md): export active, unreviewed findings as CSV and
   a Portuguese summary. The approved-only `report final` command is planned.

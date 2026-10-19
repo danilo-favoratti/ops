@@ -483,3 +483,54 @@ class PdfRepository(Protocol):
         run_id: str,
         step_id: str,
     ) -> PdfExtraction: ...
+
+
+type AnnotationKind = Literal["parecer", "nota_fiscal"]
+
+
+@dataclass(frozen=True)
+class AnnotationSpec:
+    kind: AnnotationKind
+    agent_id: str
+    model: str
+    prompt_name: str
+    prompt_version: str
+    prompt_sha256: str
+
+
+@dataclass(frozen=True)
+class AnnotationRequest:
+    record: FindingExportRecord
+    rule_text: str
+    pdf: PdfExtraction | None
+
+
+@dataclass(frozen=True)
+class AnnotationResult:
+    trace_id: str
+    output: dict[str, JsonValue] | None
+    failure: dict[str, JsonValue] | None
+
+
+class AgentGateway(Protocol):
+    def spec(self, kind: AnnotationKind, rule_id: str) -> AnnotationSpec: ...
+
+    async def annotate(
+        self, request: AnnotationRequest, *, kind: AnnotationKind
+    ) -> AnnotationResult: ...
+
+
+class AnnotationRepository(Protocol):
+    def has_success(self, finding_key: str, spec: AnnotationSpec) -> bool: ...
+
+    def save(
+        self,
+        finding_key: str,
+        spec: AnnotationSpec,
+        result: AnnotationResult,
+        *,
+        parecer_id: str,
+        created_at: datetime,
+        run_id: str,
+        step_id: str,
+    ) -> None: ...

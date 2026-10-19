@@ -1,0 +1,22 @@
+{
+  "fixture_version": "1",
+  "parecer": {
+    "fundamento": "Resposta simulada para testar o fluxo de anotação; não constitui análise do achado.",
+    "confianca": "baixa",
+    "evidencias_citadas": [
+      "Cenário offline fixo: nenhuma evidência foi interpretada."
+    ],
+    "recomendacao": "revisar"
+  },
+  "nota_fiscal": {
+    "emitente": null,
+    "cnpj": null,
+    "data": null,
+    "valor": null,
+    "descricao": null,
+    "divergencias": [],
+    "limitacoes": [
+      "Leitura simulada para testar o fluxo; nenhum campo foi extraído do PDF."
+    ]
+  }
+}

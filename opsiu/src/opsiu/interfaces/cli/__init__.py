@@ -4,6 +4,7 @@ import typer
 
 from opsiu.interfaces.cli.check import check
 from opsiu.interfaces.cli.db import app as db_app
+from opsiu.interfaces.cli.explain import explain
 from opsiu.interfaces.cli.fetch import app as fetch_app
 from opsiu.interfaces.cli.ingest import ingest
 from opsiu.interfaces.cli.report import app as report_app
@@ -16,6 +17,7 @@ app.add_typer(report_app, name="report")
 app.add_typer(fetch_app, name="fetch")
 app.command()(ingest)
 app.command()(check)
+app.command()(explain)
 
 
 @app.callback()
