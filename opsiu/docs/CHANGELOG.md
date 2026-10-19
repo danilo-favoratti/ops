@@ -7,6 +7,10 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Schema migration `0004_findings`: unique versioned finding identities, exact
+  amounts, canonical evidence, source/run/step/code provenance, and explicit
+  supersession metadata. Repeated matching findings retain their original rows;
+  conflicting evidence or superseded-key recurrence fails atomically (ADR 0009).
 - Schema migration `0003_despesas`: typed expense snapshots with immutable source,
   record, run and step provenance; yearly source metadata; indexed expense lookup;
   the `despesas_current` view; and the derived current deputy table. Reloads retain

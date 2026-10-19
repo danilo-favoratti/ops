@@ -1,11 +1,12 @@
 """Typed ports and records shared by run orchestration and ledger adapters."""
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
 
+from opsiu.domain.findings import Finding, SourceOrigin
 from opsiu.domain.models import Despesa
 from opsiu.domain.policies import Adicional, Cap, CotaUF
 
@@ -134,4 +135,36 @@ class ExpenseRepository(Protocol):
         self, *, source_file_id: str, source_year: int, run_id: str, step_id: str
     ) -> AbstractContextManager[ExpenseStage]:
         """Roll back all staged rows unless explicitly published successfully."""
+        ...
+
+
+@dataclass(frozen=True)
+class FindingChanges:
+    inserted: int = 0
+    unchanged: int = 0
+    superseded: int = 0
+
+
+class CheckRepository(Protocol):
+    def has_relation(self, name: str) -> bool: ...
+
+    def candidates(self, sql: str) -> Iterator[Mapping[str, object]]:
+        """Stream candidate rows from exactly one read-only SELECT statement."""
+        ...
+
+    def source_origin(self, id_documento: int) -> SourceOrigin: ...
+
+    def current_sources(self) -> tuple[ExpenseSourceMetadata, ...]: ...
+
+    def publish_findings(
+        self,
+        rule_id: str,
+        rule_version: str,
+        findings: tuple[Finding, ...],
+        *,
+        run_id: str,
+        step_id: str,
+        finished_at: datetime,
+    ) -> FindingChanges:
+        """Atomically publish complete results and supersede previous active rows."""
         ...
