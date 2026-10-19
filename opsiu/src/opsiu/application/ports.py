@@ -5,6 +5,8 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
+from pathlib import Path
+from types import MappingProxyType
 from typing import Literal, Protocol
 
 from opsiu.domain.findings import Finding, SourceOrigin
@@ -211,4 +213,45 @@ class ArtifactWriter(Protocol):
         self, name: str, chunks: Iterable[str], *, media_type: str
     ) -> Artifact:
         """Create a new UTF-8 artifact exclusively inside the active run step."""
+        ...
+
+
+@dataclass(frozen=True)
+class SnapshotManifest:
+    source: str
+    snapshot_id: str
+    url: str
+    status: int
+    headers: Mapping[str, str]
+    sha256: str
+    size_bytes: int
+    fetched_at: datetime
+    run_id: str
+    step_id: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "headers", MappingProxyType(dict(self.headers)))
+
+
+@dataclass(frozen=True)
+class Snapshot:
+    source: str
+    snapshot_id: str
+    path: Path
+    manifest: SnapshotManifest
+
+
+class SnapshotStore(Protocol):
+    def download(self, source: str, url: str) -> Snapshot:
+        """Publish a new immutable snapshot inside an active run step."""
+        ...
+
+    def list_snapshots(self, source: str) -> tuple[Snapshot, ...]:
+        """Return validated local snapshots, newest first, without HTTP."""
+        ...
+
+    def load_latest(self, source: str) -> Snapshot | None: ...
+
+    def load(self, source: str, snapshot_id: str) -> Snapshot:
+        """Validate and replay one exact local snapshot without HTTP."""
         ...

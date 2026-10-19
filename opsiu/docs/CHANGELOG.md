@@ -7,6 +7,10 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Schema migration `0005_snapshots`: immutable external payload metadata with
+  source, URL, safe response headers, SHA-256, byte size, fetch time, and run/step
+  provenance. Streaming downloads publish only complete successful responses;
+  local replay checks the manifest and payload against the indexed snapshot.
 - Rules `R08`–`R10`, version `1`: payments to CPF outside category exceptions
   (`R08`, high severity), potential duplicate invoices sharing payee, exact
   number, and gross amount (`R09`, medium severity), and issue-to-competence
