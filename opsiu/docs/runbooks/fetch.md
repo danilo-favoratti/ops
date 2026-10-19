@@ -4,8 +4,8 @@
 
 `fetch tse` loads candidates for the 2024 municipal and 2026 general elections.
 `fetch cnpj` captures and filters manually downloaded Receita CNPJ bulk files.
-PDF fetching belongs to the next implementation step. Run from `opsiu/` after
-`uv sync`.
+`fetch pdf --sample` captures invoice PDFs for sampled findings and extracts
+their text. Run from `opsiu/` after `uv sync`.
 
 ## TSE inputs
 
@@ -173,6 +173,92 @@ view while retaining earlier history.
 The imported bulk data describes the supplied release. It does not reconstruct
 the company's legal name, establishment activity, or ownership on each expense
 date. R12 and R13 therefore produce review indicators with that limitation.
+
+## PDF selection and bounded sampling
+
+Run a publishing [check](check.md), then fetch the invoice sample:
+
+```sh
+uv run python3 -m opsiu check
+uv run python3 -m opsiu fetch pdf --sample
+```
+
+`--sample` is required. The reusable sampler selects the latest terminal `check`
+run with status `completed` or `completed_with_errors`, excluding dry runs.
+Only rules with a `rule.checked` event from a completed step in that run are
+eligible. Failed or skipped rule steps contribute no sample. If that latest
+eligible check has no successful rules, the sample is empty; it does not fall
+back to an older check with findings.
+If no eligible terminal check exists, the sampling step fails with its reason
+recorded. Omitting `--sample` is a configuration error.
+
+For each eligible rule and version, select active findings by amount descending,
+then document ID and finding key ascending. The limit is `sampling.per_rule`,
+default `20`. For example:
+
+```sh
+OPSIU_SAMPLING__PER_RULE=5 uv run python3 -m opsiu fetch pdf --sample
+```
+
+Unchanged findings retain the run in which they were originally created.
+Sampling therefore uses the latest check's successful rule IDs and versions,
+not a requirement that each finding's stored `run_id` equal that check's ID.
+The source expense and `urlDocumento` come from the finding's original
+provenance, preserving the evidence even after a forced expense reload.
+
+Findings referring to the same document ID and original URL share one PDF
+operation within the run. A missing URL is recorded as skipped. Each document
+has an independent step, so a download or extraction failure does not prevent
+the remaining sample from being processed. The limit bounds selected findings;
+deduplication and missing URLs can reduce the number of downloads.
+
+## PDF snapshots, cache, and refresh
+
+Each download uses the HTTP snapshot store and saves raw response bytes under
+`paths.external_dir/pdf/<snapshot_id>/payload`, with its `manifest.json`.
+The raw snapshot retains content encoding when supplied by the server. A
+separate decoded PDF is cached for extraction.
+
+The first cache path is `paths.external_dir/pdf/<id_documento>.pdf`, created
+exclusively. Later URLs or explicit refreshes use
+`paths.external_dir/pdf/versions/<id_documento>/<snapshot_id>.pdf`. Existing
+files and extracted text are never overwritten.
+Published cache paths remain reserved even if their files are deleted; later
+downloads use a new version path instead of reusing a historical location.
+
+Ordinary reruns validate the raw snapshot and the decoded PDF's recorded
+SHA-256 and size before reusing the cache. A corrupted cache fails its document
+step; it does not silently replace the file or download another copy. An
+explicit refresh obtains new evidence while preserving the old artifact:
+
+```sh
+uv run python3 -m opsiu fetch pdf --sample --refresh
+```
+
+Refresh remains subject to the same sampling limit. It always captures a new
+raw snapshot and a new decoded PDF version, even if the server returns identical
+bytes. It does not expand the sample to every finding or change finding approval.
+
+## PDF extraction and provenance
+
+`pypdf` extracts text from the decoded PDF. Migration `0006_nf_texto` stores
+append-only extractions with the document ID, original URL, raw snapshot
+identity/hash, decoded file path/hash/size, extractor name/version, text/hash,
+page count, `needs_ocr`, and extraction run/step. `nf_texto_findings` links an
+extraction to every sampled finding that used it, retaining the finding's
+original expense provenance.
+
+An unchanged extractor can reuse its existing extraction after its text hash
+and metadata are validated. When the extractor
+version changes, verified cached PDF bytes are extracted again without HTTP,
+and a new extraction row is appended. Earlier text, metadata, and finding links
+remain available.
+
+Empty extracted text sets `needs_ocr = true`. This is a flag for later handling;
+no OCR is performed by this command. Nonempty text does not guarantee accurate
+or complete extraction, and a malformed PDF is a recorded failure rather than
+an empty-text success. PDF fetching and extraction do not decide whether a rule
+was broken, annotate findings with an agent, or approve a final report.
 
 ## Runs and failure diagnosis
 

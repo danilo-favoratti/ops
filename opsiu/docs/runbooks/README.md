@@ -15,9 +15,9 @@ their use cases become available; the final documentation pass completes them.
   runbook planned as `runs.md`.
 - [`ingest`](ingest.md): stream yearly expense files into the database.
 - [`check`](check.md): apply deterministic rules with versioned finding history.
-- [`fetch tse` and `fetch cnpj`](fetch.md): download or replay TSE candidates
-  for R11, and capture or replay manually downloaded Receita files for R12–R13.
-  PDF fetch is planned.
+- [`fetch tse`, `fetch cnpj`, and `fetch pdf --sample`](fetch.md): load external
+  datasets for R11–R13 and capture sampled invoice PDFs with versioned text
+  extraction and verified cache reuse.
 - `explain`: annotate sampled findings with agents; planned as `explain.md`.
 - `review`: launch the local approval application; planned as `review.md`.
 - [`report findings`](report.md): export active, unreviewed findings as CSV and

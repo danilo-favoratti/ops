@@ -6,14 +6,17 @@ from typing import Annotated
 import typer
 
 from opsiu.adapters.duckdb.cnpj_repository import DuckDBCnpjRepository
+from opsiu.adapters.duckdb.findings_export import DuckDBFindingExportReader
 from opsiu.adapters.duckdb.ledger import DuckDBLedger
 from opsiu.adapters.duckdb.migration_runner import apply_migrations
+from opsiu.adapters.duckdb.pdf_repository import DuckDBPdfRepository
 from opsiu.adapters.duckdb.tse_repository import DuckDBTseRepository
 from opsiu.adapters.external.cnpj_bulk import CnpjBulkSource
 from opsiu.adapters.external.cnpj_snapshots import LocalCnpjSnapshotStore
+from opsiu.adapters.external.pdf import PdfDocumentSource
 from opsiu.adapters.external.snapshots import HttpSnapshotStore
 from opsiu.adapters.external.tse import TseCandidateSource
-from opsiu.application.fetch import fetch_cnpj, fetch_tse
+from opsiu.application.fetch import fetch_cnpj, fetch_pdfs, fetch_tse
 from opsiu.application.runs import ConfigurationError
 from opsiu.interfaces.cli.runtime import command_run
 
@@ -130,4 +133,52 @@ def cnpj(
             f"sócios: {context.run.counters.get('cnpj_partners_loaded', 0)}; "
             "estabelecimentos: "
             f"{context.run.counters.get('cnpj_establishments_loaded', 0)}."
+        )
+
+
+@app.command("pdf")
+def pdf(
+    sample: Annotated[
+        bool, typer.Option(help="Usar somente a amostra limitada por regra.")
+    ] = False,
+    refresh: Annotated[
+        bool, typer.Option(help="Capturar novas versões sem sobrescrever o cache.")
+    ] = False,
+) -> None:
+    """Capturar e extrair textos dos PDFs de uma amostra dos achados."""
+    with command_run("fetch pdf", {"sample": sample, "refresh": refresh}) as context:
+        if not sample:
+            raise ConfigurationError("Use --sample para limitar a captura de PDFs.")
+        with context.run.step("preparar_banco") as preparation:
+            connection = context.open_database(create=True)
+            assert connection is not None
+            try:
+                migrations = apply_migrations(connection)
+            finally:
+                if DuckDBLedger.schema_exists(connection):
+                    context.database_ledger.attach(connection)
+            context.run.counters["migrations_applied"] = len(migrations)
+            context.run.emit("db.migrated", {"migrations": list(migrations)})
+        if preparation.record.status == "failed":
+            return
+        assert connection is not None
+        fetch_pdfs(
+            context.run,
+            context.database_ledger,
+            DuckDBFindingExportReader(connection),
+            PdfDocumentSource(
+                context.settings.paths.external_dir,
+                context.run,
+                HttpSnapshotStore(
+                    context.settings.paths.external_dir, connection, context.run
+                ),
+            ),
+            DuckDBPdfRepository(connection),
+            per_rule=context.settings.sampling.per_rule,
+            refresh=refresh,
+        )
+        typer.echo(
+            f"PDFs extraídos: {context.run.counters.get('pdfs_extracted', 0)}; "
+            f"em cache: {context.run.counters.get('pdfs_cached', 0)}; "
+            f"falhas: {context.run.counters.get('pdfs_failed', 0)}."
         )

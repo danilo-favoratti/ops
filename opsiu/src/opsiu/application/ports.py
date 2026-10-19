@@ -420,3 +420,66 @@ class CnpjRepository(Protocol):
         run_id: str,
         step_id: str,
     ) -> AbstractContextManager[CnpjStage]: ...
+
+
+@dataclass(frozen=True)
+class FindingSample:
+    check_run_id: str
+    records: tuple[FindingExportRecord, ...]
+
+
+@dataclass(frozen=True)
+class PdfContent:
+    id_documento: int
+    url: str
+    snapshot_id: str
+    snapshot_sha256: str
+    path: Path
+    sha256: str
+    size_bytes: int
+    extractor: str
+    extractor_version: str
+    text: str
+    text_sha256: str
+    needs_ocr: bool
+    page_count: int
+
+
+@dataclass(frozen=True)
+class PdfExtraction:
+    extraction_id: str
+    content: PdfContent
+    created_at: datetime
+    run_id: str
+    step_id: str
+
+
+class PdfSource(Protocol):
+    def prepare(
+        self,
+        id_documento: int,
+        url: str,
+        *,
+        previous: PdfExtraction | None = None,
+        refresh: bool = False,
+        initial_path_reserved: bool = False,
+    ) -> PdfContent: ...
+
+
+class PdfRepository(Protocol):
+    def has_document(self, id_documento: int) -> bool:
+        """Whether any immutable extraction reserves this document's initial path."""
+        ...
+
+    def latest(self, id_documento: int, url: str) -> PdfExtraction | None: ...
+
+    def publish(
+        self,
+        content: PdfContent,
+        finding_keys: tuple[str, ...],
+        *,
+        extraction_id: str,
+        created_at: datetime,
+        run_id: str,
+        step_id: str,
+    ) -> PdfExtraction: ...

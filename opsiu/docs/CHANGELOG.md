@@ -7,6 +7,17 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Schema migration `0006_nf_texto`: immutable PDF text extractions with raw
+  snapshot identity, decoded PDF path/hash/size, extractor name and version,
+  text hash, page count, OCR-needed flag, and run/step provenance. The
+  `nf_texto_findings` relation preserves links to each original finding and its
+  expense origin without replacing earlier extraction rows.
+- Sampled PDF capture and `pypdf` extraction through `fetch pdf --sample`.
+  Sampling uses successful rule checks in the latest eligible completed check,
+  retains original finding URLs, and bounds each rule by `sampling.per_rule`.
+  Verified cache reuse avoids HTTP; explicit refresh creates a new raw snapshot
+  and PDF version. Extractor upgrades append text extraction from verified
+  cached bytes. Empty text is flagged for OCR; OCR itself is not implemented.
 - Schema migration `0005b_cnpj`: immutable local Receita snapshots, filtered
   import history, covered supplier roots, companies, individual/other partners,
   and establishments, with current views and source/run/step provenance.

@@ -11,7 +11,12 @@ from opsiu.application.ports import (
     CnpjSnapshot,
     CnpjSnapshotStore,
     CnpjSource,
+    FindingExportReader,
+    FindingExportRecord,
     JsonValue,
+    PdfRepository,
+    PdfSource,
+    RunReader,
     Snapshot,
     SnapshotStore,
     TseCandidate,
@@ -19,6 +24,7 @@ from opsiu.application.ports import (
     TseSource,
 )
 from opsiu.application.runs import ConfigurationError, Run
+from opsiu.application.sampling import sample_findings
 from opsiu.domain.policies import ELECTION_DATES
 
 
@@ -226,3 +232,95 @@ def fetch_cnpj(
         }
         run.metadata["cnpj_import"] = description
         run.emit("cnpj.loaded", dict(description))
+
+
+def fetch_pdfs(
+    run: Run,
+    run_reader: RunReader,
+    finding_reader: FindingExportReader,
+    source: PdfSource,
+    repository: PdfRepository,
+    *,
+    per_rule: int,
+    refresh: bool = False,
+) -> None:
+    for counter in (
+        "pdfs_selected",
+        "pdfs_extracted",
+        "pdfs_cached",
+        "pdfs_skipped",
+        "pdfs_failed",
+        "pdfs_needing_ocr",
+    ):
+        run.counters[counter] = 0
+    with run.step("selecionar_amostra") as selection:
+        sample = sample_findings(run_reader, finding_reader, per_rule=per_rule)
+        description: dict[str, JsonValue] = {
+            "check_run_id": sample.check_run_id,
+            "per_rule": per_rule,
+            "finding_keys": [record.finding.finding_key for record in sample.records],
+        }
+        run.metadata["sample"] = description
+        run.counters["findings_sampled"] = len(sample.records)
+        run.emit("findings.sampled", description)
+    if selection.record.status == "failed":
+        return
+    groups: dict[tuple[int, str | None], list[FindingExportRecord]] = {}
+    for record in sample.records:
+        groups.setdefault(
+            (record.finding.id_documento, record.url_documento), []
+        ).append(record)
+    run.counters["pdfs_selected"] = len(groups)
+    for (document, url), records in groups.items():
+        with run.step(f"obter_pdf_{document}") as step:
+            if url is None:
+                run.counters["pdfs_skipped"] += 1
+                step.skip("A despesa original não possui URL de documento.")
+                run.emit(
+                    "pdf.skipped", {"id_documento": document, "reason": "missing_url"}
+                )
+                continue
+            previous = repository.latest(document, url)
+            content = source.prepare(
+                document,
+                url,
+                previous=previous,
+                refresh=refresh,
+                initial_path_reserved=repository.has_document(document),
+            )
+            extraction = repository.publish(
+                content,
+                tuple(record.finding.finding_key for record in records),
+                extraction_id=run.ids.new_id(),
+                created_at=run.clock.now(),
+                run_id=run.run_id,
+                step_id=run.require_step(),
+            )
+            cached = (
+                previous is not None
+                and previous.extraction_id == extraction.extraction_id
+            )
+            counter = "pdfs_cached" if cached else "pdfs_extracted"
+            run.counters[counter] += 1
+            if content.needs_ocr:
+                run.counters["pdfs_needing_ocr"] += 1
+            details: dict[str, JsonValue] = {
+                "id_documento": document,
+                "url": url,
+                "finding_keys": [record.finding.finding_key for record in records],
+                "extraction_id": extraction.extraction_id,
+                "snapshot_id": content.snapshot_id,
+                "snapshot_sha256": content.snapshot_sha256,
+                "path": str(content.path),
+                "sha256": content.sha256,
+                "size_bytes": content.size_bytes,
+                "extractor": content.extractor,
+                "extractor_version": content.extractor_version,
+                "needs_ocr": content.needs_ocr,
+            }
+            saved = run.metadata.setdefault("pdfs", [])
+            assert isinstance(saved, list)
+            saved.append(details)
+            run.emit("pdf.cached" if cached else "pdf.extracted", details)
+        if step.record.status == "failed":
+            run.counters["pdfs_failed"] += 1
