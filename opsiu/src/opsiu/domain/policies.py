@@ -31,6 +31,9 @@ class Adicional:
 # This is not a researched history of legal effective dates; see ADR 0008.
 POLICY_VALID_FROM = date(2023, 1, 1)
 
+# First-round dates define the explicitly planned 120-day publicity window.
+ELECTION_DATES = MappingProxyType({2024: date(2024, 10, 6), 2026: date(2026, 10, 4)})
+
 # numeroSubCota/descricao pairs verified in the 2023 and 2026 source files:
 # 120: LOCAÇÃO OU FRETAMENTO DE VEÍCULOS AUTOMOTORES
 # 122: SERVIÇO DE TÁXI, PEDÁGIO E ESTACIONAMENTO

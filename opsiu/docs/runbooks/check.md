@@ -13,7 +13,7 @@ uv run python3 -m opsiu check --regras R01,R02
 uv run python3 -m opsiu check --regras R07,R14 --dry-run
 ```
 
-Without `--regras`, all 11 currently registered rules run:
+Without `--regras`, all 12 currently registered rules run:
 
 - [R01: vehicle rental](../../.llms/rules/R01-locacao-veiculos.md).
 - [R02: taxi, tolls, and parking](../../.llms/rules/R02-taxi-pedagio-estacionamento.md).
@@ -25,9 +25,10 @@ Without `--regras`, all 11 currently registered rules run:
 - [R08: payments to CPF](../../.llms/rules/R08-pagamento-cpf.md).
 - [R09: possible duplicate invoices](../../.llms/rules/R09-nota-duplicada.md).
 - [R10: issue-to-competence interval](../../.llms/rules/R10-prazo-reembolso.md).
+- [R11: pre-election publicity](../../.llms/rules/R11-divulgacao-eleitoral.md).
 - [R14: leadership quota](../../.llms/rules/R14-liderancas.md).
 
-R11–R13 are not registered yet. Unknown or repeated rule identifiers are
+R12–R13 are not registered yet. Unknown or repeated rule identifiers are
 configuration errors. `OPSIU_CONFIG` selects the TOML file; nested `OPSIU_*`
 environment overrides take precedence over its values. Paths are relative to the
 working directory.

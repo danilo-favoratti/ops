@@ -15,7 +15,8 @@ their use cases become available; the final documentation pass completes them.
   runbook planned as `runs.md`.
 - [`ingest`](ingest.md): stream yearly expense files into the database.
 - [`check`](check.md): apply deterministic rules with versioned finding history.
-- `fetch tse|cnpj|pdf`: capture and load external evidence; planned as `fetch.md`.
+- [`fetch tse`](fetch.md): download or locally replay TSE candidate snapshots
+  for R11. CNPJ and PDF fetch commands are planned.
 - `explain`: annotate sampled findings with agents; planned as `explain.md`.
 - `review`: launch the local approval application; planned as `review.md`.
 - [`report findings`](report.md): export active, unreviewed findings as CSV and

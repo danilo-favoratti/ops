@@ -15,6 +15,7 @@ from opsiu.domain.rules.r07_cota_uf import R07CotaUF
 from opsiu.domain.rules.r08_pagamento_cpf import R08PagamentoCPF
 from opsiu.domain.rules.r09_nota_duplicada import R09NotaDuplicada
 from opsiu.domain.rules.r10_prazo_reembolso import R10PrazoReembolso
+from opsiu.domain.rules.r11_divulgacao_eleitoral import R11DivulgacaoEleitoral
 from opsiu.domain.rules.r14_liderancas import R14Liderancas
 
 RULES: tuple[type[Rule], ...] = (
@@ -28,6 +29,7 @@ RULES: tuple[type[Rule], ...] = (
     R08PagamentoCPF,
     R09NotaDuplicada,
     R10PrazoReembolso,
+    R11DivulgacaoEleitoral,
     R14Liderancas,
 )
 

@@ -7,6 +7,17 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Schema migration `0005a_tse`: immutable TSE candidate and import history with
+  snapshot, source-member/record, run, and step provenance, plus current views
+  selecting the latest successful import per election year. TSE loading keeps
+  the policy election date, first round, and ordinary election type; unchanged
+  current hashes retain their original import, and failed loads preserve it.
+- Rule `R11`, version `1`, with high severity: publicity expenses in category
+  `5` issued during the 120 days before the 2024 or 2026 policy election date.
+  The lower bound is included and election day excluded. Matching prioritizes
+  CPF; exact normalized name plus UF is allowed only with a missing CPF and
+  cannot override conflicting complete CPFs. Ambiguous candidate identities
+  fail the rule. Portuguese evidence links the candidate and snapshot used.
 - Schema migration `0005_snapshots`: immutable external payload metadata with
   source, URL, safe response headers, SHA-256, byte size, fetch time, and run/step
   provenance. Streaming downloads publish only complete successful responses;

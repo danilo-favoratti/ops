@@ -255,3 +255,48 @@ class SnapshotStore(Protocol):
     def load(self, source: str, snapshot_id: str) -> Snapshot:
         """Validate and replay one exact local snapshot without HTTP."""
         ...
+
+
+@dataclass(frozen=True)
+class TseCandidate:
+    candidate_id: str
+    year: int
+    cpf: str | None
+    nome_normalizado: str
+    uf: str
+    cargo: str
+    source_member: str
+    source_record_number: int
+
+
+@dataclass(frozen=True)
+class TseImport:
+    import_id: str
+    snapshot_id: str
+    source_sha256: str
+    year: int
+    records_count: int
+
+
+class TseSource(Protocol):
+    def candidates(self, snapshot: Snapshot, year: int) -> Iterator[TseCandidate]: ...
+
+
+class TseStage(Protocol):
+    def add_batch(self, candidates: tuple[TseCandidate, ...]) -> None: ...
+
+    def publish(self, *, loaded_at: datetime) -> TseImport: ...
+
+
+class TseRepository(Protocol):
+    def current_import(self, year: int) -> TseImport | None: ...
+
+    def stage(
+        self,
+        *,
+        import_id: str,
+        snapshot: Snapshot,
+        year: int,
+        run_id: str,
+        step_id: str,
+    ) -> AbstractContextManager[TseStage]: ...
