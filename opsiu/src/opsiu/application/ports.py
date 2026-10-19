@@ -534,3 +534,59 @@ class AnnotationRepository(Protocol):
         run_id: str,
         step_id: str,
     ) -> None: ...
+
+
+@dataclass(frozen=True)
+class SummaryFinding:
+    finding: Finding
+    numero_deputado_id: int
+    nome_parlamentar: str
+    ano: int
+    mes: int
+    parecer_id: str
+    parecer_trace_id: str
+    parecer: dict[str, JsonValue]
+
+
+@dataclass(frozen=True)
+class DeputyReviewInput:
+    numero_deputado_id: int
+    nome_parlamentar: str
+    findings: tuple[SummaryFinding, ...]
+
+
+@dataclass(frozen=True)
+class SummarySpec:
+    model: str
+    prompt_name: str
+    prompt_version: str
+    prompt_sha256: str
+
+
+class DeputyReviewer(Protocol):
+    def spec(self) -> SummarySpec: ...
+
+    async def summarize(self, request: DeputyReviewInput) -> AnnotationResult: ...
+
+
+class SummaryRepository(Protocol):
+    def inputs(
+        self, model: str, *, deputy_id: int | None = None
+    ) -> Iterator[DeputyReviewInput]: ...
+
+    def has_success(
+        self, deputy_id: int, input_sha256: str, spec: SummarySpec
+    ) -> bool: ...
+
+    def save(
+        self,
+        request: DeputyReviewInput,
+        input_sha256: str,
+        spec: SummarySpec,
+        result: AnnotationResult,
+        *,
+        summary_id: str,
+        created_at: datetime,
+        run_id: str,
+        step_id: str,
+    ) -> None: ...

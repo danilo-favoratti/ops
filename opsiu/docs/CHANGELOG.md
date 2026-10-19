@@ -17,6 +17,14 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Schema migration `0008_resumos_deputado`: immutable per-deputy summaries and
+  exact source links to findings, opinions, private traces, and original source
+  hashes. Summary identity includes the complete input hash, model, and prompt
+  version; repeated inputs are reused unless explicitly forced.
+- `explain --consolidar [--deputado ID]` summarizes active findings with existing
+  successful opinions from the selected model. Scripted mode is explicit, calls
+  share the per-run summary budget, and strict validation preserves every input
+  finding and its deterministic severity. Summaries never approve findings.
 - Schema migration `0007_agents`: append-only terminal agent traces and
   parecer records with finding, run, step, model, prompt version/hash, schema,
   input/output, usage, duration, and status provenance. Separate private trace

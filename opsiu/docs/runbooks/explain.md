@@ -1,8 +1,9 @@
-# Annotate sampled findings with agents
+# Annotate findings and consolidate deputy summaries
 
 ## Purpose and prerequisites
 
 `explain` adds structured opinions and invoice readings to deterministic findings.
+Its `--consolidar` mode summarizes existing opinions by deputy.
 It does not change a rule's result, supersede findings, record a human decision,
 or approve a final report. Run commands from `opsiu/` after `uv sync`.
 
@@ -107,6 +108,78 @@ Prompt name/hash must agree with existing successful annotations under the same
 version and model. Editing a prompt without changing its version is an integrity
 failure, including with `--force`. Make a deliberate prompt-version change and
 record it in the changelog instead of rewriting earlier traces or annotations.
+
+## Consolidate existing opinions by deputy
+
+After creating opinions, run consolidation separately:
+
+```sh
+uv run python3 -m opsiu explain --consolidar
+uv run python3 -m opsiu explain --consolidar --deputado 101
+```
+
+This mode only summarizes existing opinions; it does not create new finding
+opinions or invoice readings. `--consolidar` cannot be combined with `--regras`
+or `--amostra`, and `--deputado` requires `--consolidar`. Invalid combinations
+produce a recorded configuration failure with exit code `2`.
+
+Selection includes every active finding with a successful `parecer` for the
+actual execution model, independently of the latest check's sample. For each
+finding, it uses the latest successful opinion by creation time, with opinion
+ID as the tie breaker. Invoice readings are not source opinions. Recommendations
+`manter`, `descartar`, and `revisar` all remain eligible: an agent's recommendation
+does not remove a deterministic finding from human review. Findings without a
+matching opinion are omitted; no eligible findings means no summary call.
+
+Scripted consolidation uses only model `scripted` opinions. Live consolidation
+uses only opinions for `agents.model`, under the same live gates and sandbox
+described above. Switching modes or models does not fall back to other models'
+opinions. Each finding's original expense supplies deputy identity and source
+hashes. The displayed deputy name comes from the latest original expense by
+year, month, document ID, and finding key, rather than the current deputy table.
+
+The existing per-run call budget applies per deputy: each attempted summary,
+including a failed attempt, consumes one slot. Unchanged summaries skipped on
+resume consume none, and a zero budget permits no calls. A failed deputy step
+leaves earlier summaries intact and processing continues within the budget.
+
+```sh
+OPSIU_AGENTS__MAX_CALLS_PER_RUN=1 uv run python3 -m opsiu explain --consolidar
+uv run python3 -m opsiu explain --consolidar --deputado 101 --force
+```
+
+Resume matches the deputy, canonical input hash, model, and prompt version. The
+input hash covers the full selected evidence and its original provenance,
+including each opinion and opinion-trace ID. A new opinion changes the input
+hash even when its text is identical; superseded findings cease to contribute
+to subsequent summaries. `--force` appends another summary and trace for the
+same input. Neither path overwrites earlier summaries. Changing the prompt
+name or hash under the same version remains an integrity failure, even with
+force. The existing [`consolidar-deputado` prompt](../../.llms/tasks/consolidar-deputado.md)
+remains version `1`.
+
+The output must cover exactly the supplied finding keys, each once, preserve
+their deterministic severities, and order severity groups as `alta`, `media`,
+then `revisar`. Within a group the agent may prioritize review with an evidence
+based justification. A response that violates these checks fails its output
+codec and is not published as a summary. Ranking organizes review; it neither
+changes rule results nor approves findings. Overlapping quota and duplicate
+invoice amounts must not be presented as a unique proven loss.
+
+Successful summaries are appended atomically to `resumos_deputado` and
+`resumo_fontes`. These retain the canonical input/hash, structured output,
+summary trace, exact source findings/opinions/traces and hashes, and run/step
+origins. Saving verifies the input still matches the currently eligible source
+set and the successful private trace matches the model, prompt, run, step,
+SDK-redacted agent input, and output. Later source changes cannot rewrite that
+history. No human decision or final approved report is produced.
+
+Consolidation manifests and events identify the source model, selected deputy,
+input hash, and source finding/opinion/trace IDs without exposing opinion bodies.
+`deputies_selected`, `summary_calls`, `summaries_saved`, `summaries_skipped`,
+`summaries_failed`, and `budget_exhausted` describe progress; `agent_calls` counts
+recorded invocations. Private trace inspection uses the same storage and
+credential-redaction boundary as other agent calls.
 
 ## Runs, failures, and trace inspection
 

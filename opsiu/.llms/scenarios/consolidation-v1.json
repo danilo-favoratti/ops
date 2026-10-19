@@ -1,0 +1,8 @@
+{
+  "fixture_version": "1",
+  "resumo": "Consolidação simulada para testar o fluxo; os achados e pareceres não foram interpretados.",
+  "pontos_atencao": [
+    "Este resultado simulado exige revisão humana e não representa conclusão sobre o parlamentar."
+  ],
+  "justificativa": "Prioridade copiada da severidade determinística original, sem análise simulada de mérito."
+}
