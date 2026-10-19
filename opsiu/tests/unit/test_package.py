@@ -13,9 +13,9 @@ def test_package_import() -> None:
     assert opsiu.__version__ == "0.1.0"
 
 
-def test_empty_cli_help() -> None:
+def test_cli_help() -> None:
     result = CliRunner().invoke(app, ["--help"])
 
     assert result.exit_code == 0
     assert "CEAP" in result.stdout
-    assert not app.registered_commands
+    assert "db" in result.stdout
