@@ -3,9 +3,11 @@
 import typer
 
 from opsiu.interfaces.cli.db import app as db_app
+from opsiu.interfaces.cli.runs import app as runs_app
 
 app = typer.Typer(no_args_is_help=True)
 app.add_typer(db_app, name="db")
+app.add_typer(runs_app, name="runs")
 
 
 @app.callback()
