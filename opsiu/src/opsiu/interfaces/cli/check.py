@@ -7,11 +7,13 @@ import typer
 from opsiu.adapters.duckdb.check_repository import DuckDBCheckRepository
 from opsiu.adapters.duckdb.ledger import DuckDBLedger
 from opsiu.adapters.duckdb.migration_runner import apply_migrations
+from opsiu.adapters.duckdb.receipt_matches import prepare_receipt_matches
 from opsiu.application.check import check as check_rules
 from opsiu.application.runs import ConfigurationError
 from opsiu.domain.rules import registry
 from opsiu.domain.rules.base import Rule
 from opsiu.domain.rules.quota import QuotaEvaluator
+from opsiu.domain.rules.r09_nota_duplicada import R09NotaDuplicada
 from opsiu.interfaces.cli.runtime import command_run
 
 
@@ -59,6 +61,19 @@ def check(
         if preparation.record.status == "failed":
             return
         assert connection is not None
+        if any(isinstance(rule, R09NotaDuplicada) for rule in rules):
+            with context.run.step("comparar_comprovantes_em_cache") as comparison:
+                receipt_matches = prepare_receipt_matches(
+                    connection, context.settings.paths.external_dir, context.run
+                )
+            if comparison.record.status == "failed":
+                return
+            rules = tuple(
+                rule.with_cached_receipts(receipt_matches)
+                if isinstance(rule, R09NotaDuplicada)
+                else rule
+                for rule in rules
+            )
         check_rules(
             context.run, DuckDBCheckRepository(connection), rules, dry_run=dry_run
         )

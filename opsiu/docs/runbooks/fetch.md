@@ -354,3 +354,37 @@ is the current catalog. Select one monthly release and download every Empresas,
 Socios, and Estabelecimentos partition into one directory, then use
 `fetch cnpj --from` as above. The catalog URL is not a ZIP file; the CLI still
 imports a supplied local release and does not automatically download the catalog.
+
+## Comparing possible duplicate receipts
+
+Use a bounded capture of complete candidate groups, then evaluate R09:
+
+```sh
+uv run python3 -m opsiu receipts fetch --limit 20
+uv run python3 -m opsiu check --regras R09
+```
+
+The capture limit is 2–200 distinct positive document IDs. Selection prioritizes
+usable invoice numbers with a shared known issue date, then gross amount.
+Groups with missing or ambiguous URLs are skipped with recorded counts; a group
+that does not fit the remaining limit is not partially selected. Existing captures
+are verified and reused. Repeating the same limit reuses the same selection;
+a larger limit expands the deterministic sample. Use
+`receipts fetch --limit 20 --uncached-only` to advance past entirely cached groups
+while keeping partially cached groups complete. Download failures remain explicit
+and do not imply that a receipt is absent or different.
+
+Every R09 check verifies the currently cached receipts linked to current expense
+URLs, groups by verified size and SHA-256, and confirms equality with a chunked
+raw-byte comparison. The run reports receipt coverage and exact groups. A cache
+integrity failure prevents publication. Comparison is bounded to 2,000 references
+and 256 MiB; it does not download unbounded files or compare extracted text as a
+substitute for binary identity.
+
+Metadata matching now requires a usable number and identical known issue date.
+Byte-identical cached receipts provide an independent route when those metadata
+conditions are absent. Existing metadata findings remain unchanged when receipt
+coverage grows; existing byte-only findings retain their original verified group
+while its cited captures still exist together. Newly found groups are recorded in
+run events even when a metadata finding already exists. Receipt identity establishes
+file reuse, not duplicate reimbursement or recoverable loss.

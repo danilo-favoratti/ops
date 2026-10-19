@@ -230,8 +230,8 @@ def test_real_cap_and_duplicate_rules_accept_accounting_rows(
         "FROM findings ORDER BY rule_id,id_documento",
     ) == [
         ("R01", "2", 2, Decimal("13287.00")),
-        ("R09", "2", 1, Decimal("13000.00")),
-        ("R09", "2", 2, Decimal("13000.00")),
+        ("R09", "3", 1, Decimal("13000.00")),
+        ("R09", "3", 2, Decimal("13000.00")),
     ]
     for (encoded,) in rows(
         history_root, "SELECT evidence_json FROM findings WHERE id_documento=2"

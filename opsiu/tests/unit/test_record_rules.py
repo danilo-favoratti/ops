@@ -8,6 +8,7 @@ import duckdb
 import pytest
 from duckdb import DuckDBPyConnection
 
+from opsiu.domain.invoice_numbers import usable_invoice_number
 from opsiu.domain.rules.base import Rule
 from opsiu.domain.rules.r08_pagamento_cpf import R08PagamentoCPF
 from opsiu.domain.rules.r09_nota_duplicada import R09NotaDuplicada
@@ -77,13 +78,13 @@ def test_duplicates_use_gross_value_across_deputies_and_distinct_sorted_ids(
     db.execute(
         "INSERT INTO despesas_current (id_documento, numero_deputado_id, "
         "cnpj_cpf_digits, "
-        "numero, valor_documento, valor_liquido) VALUES "
-        "(2, 200, '00000000000001', '000001', 321.09, 320.09), "
-        "(1, 100, '00000000000001', '000001', 321.09, 321.09), "
-        "(3, 100, '00000000000001', '000002', 321.09, 321.09), "
-        "(4, 100, '00000000000001', '000001', 321.08, 321.08), "
-        "(5, 100, '00000000000002', '000001', 321.09, 321.09), "
-        "(6, 100, '00000000000001', '1', 321.09, 321.09)"
+        "numero, valor_documento, valor_liquido, data_emissao) VALUES "
+        "(2, 200, '00000000000001', '000001', 321.09, 320.09, '2099-01-01'), "
+        "(1, 100, '00000000000001', '000001', 321.09, 321.09, '2099-01-01'), "
+        "(3, 100, '00000000000001', '000002', 321.09, 321.09, '2099-01-01'), "
+        "(4, 100, '00000000000001', '000001', 321.08, 321.08, '2099-01-01'), "
+        "(5, 100, '00000000000002', '000001', 321.09, 321.09, '2099-01-01'), "
+        "(6, 100, '00000000000001', '1', 321.09, 321.09, '2099-01-01')"
     )
     rule = R09NotaDuplicada()
     rows = candidates(db, rule)
@@ -93,6 +94,7 @@ def test_duplicates_use_gross_value_across_deputies_and_distinct_sorted_ids(
         assert result is not None and result.amount == Decimal("321.09")
         assert result.evidence["documentos"] == [1, 2]
         assert result.evidence["numero"] == "000001"
+        assert result.evidence["data_emissao"] == date(2099, 1, 1)
         assert result.evidence["possivel_duplicidade"] is True
 
 
@@ -101,15 +103,16 @@ def test_repeated_same_document_does_not_create_a_duplicate_group(
 ) -> None:
     db.execute(
         "INSERT INTO despesas_current (id_documento, cnpj_cpf_digits, "
-        "numero, valor_documento) "
-        "VALUES (1, '00000000000001', 'A', 10), (1, '00000000000001', 'A', 10)"
+        "numero, valor_documento, data_emissao) "
+        "VALUES (1, '00000000000001', 'A', 10, '2099-01-01'), "
+        "(1, '00000000000001', 'A', 10, '2099-01-01')"
     )
     rule = R09NotaDuplicada()
     assert candidates(db, rule) == []
     db.execute(
         "INSERT INTO despesas_current (id_documento, cnpj_cpf_digits, "
-        "numero, valor_documento) "
-        "VALUES (2, '00000000000001', 'A', 10)"
+        "numero, valor_documento, data_emissao) "
+        "VALUES (2, '00000000000001', 'A', 10, '2099-01-01')"
     )
     rows = candidates(db, rule)
     assert [row["id_documento"] for row in rows] == [1, 2]
@@ -136,14 +139,100 @@ def test_missing_duplicate_keys_cannot_prove_an_invoice_match(
 ) -> None:
     db.executemany(
         "INSERT INTO despesas_current (id_documento, cnpj_cpf_digits, "
-        "numero, valor_documento) "
-        "VALUES (?, ?, ?, ?)",
+        "numero, valor_documento, data_emissao) "
+        "VALUES (?, ?, ?, ?, '2099-01-01')",
         [
             (document, payee, number, Decimal(gross) if gross is not None else None)
             for document in (1, 2)
         ],
     )
     assert candidates(db, R09NotaDuplicada()) == []
+
+
+@pytest.mark.parametrize(
+    "number,eligible",
+    [
+        (None, False),
+        ("", False),
+        (" / - . ", False),
+        ("s/n", False),
+        ("SN", False),
+        ("s.n.º", False),
+        ("s/no", False),
+        ("N/D", False),
+        ("Sem número", False),
+        ("000000", False),
+        ("0/0", False),
+        ("000001", True),
+        ("SN123", True),
+        ("A-000", True),
+        ("NA", True),
+    ],
+)
+def test_duplicate_number_policy_excludes_markers_without_rewriting_real_numbers(
+    db: DuckDBPyConnection, number: str | None, eligible: bool
+) -> None:
+    db.executemany(
+        "INSERT INTO despesas_current (id_documento, cnpj_cpf_digits, numero, "
+        "valor_documento, data_emissao) VALUES (?, '00000000000001', ?, 10, "
+        "'2099-01-01')",
+        [(document, number) for document in (1, 2)],
+    )
+    rule = R09NotaDuplicada()
+    rows = candidates(db, rule)
+    assert bool(rows) is eligible
+    assert usable_invoice_number(number) is eligible
+    direct = rule.evaluate(
+        {
+            "id_documento": 1,
+            "documentos": [1, 2],
+            "cnpj_cpf_digits": "00000000000001",
+            "numero": number,
+            "valor_documento": Decimal("10.00"),
+            "data_emissao": date(2099, 1, 1),
+        }
+    )
+    assert (direct is not None) is eligible
+    for row in rows:
+        result = rule.evaluate(row)
+        assert result is not None and result.evidence["numero"] == number
+
+
+@pytest.mark.parametrize("issued", [None, date(2099, 1, 2)])
+def test_duplicate_metadata_requires_same_known_issue_date(
+    db: DuckDBPyConnection, issued: date | None
+) -> None:
+    db.executemany(
+        "INSERT INTO despesas_current (id_documento, cnpj_cpf_digits, numero, "
+        "valor_documento, data_emissao) VALUES (?, '00000000000001', '123', 10, ?)",
+        [(1, date(2099, 1, 1)), (2, issued)],
+    )
+    assert candidates(db, R09NotaDuplicada()) == []
+
+
+def test_nonpositive_document_ids_do_not_form_metadata_duplicate_groups(
+    db: DuckDBPyConnection,
+) -> None:
+    db.executemany(
+        "INSERT INTO despesas_current (id_documento, cnpj_cpf_digits, numero, "
+        "valor_documento, data_emissao) VALUES (?, '00000000000001', '123', 10, "
+        "'2099-01-01')",
+        [(document,) for document in (-1, 0, 1)],
+    )
+    assert candidates(db, R09NotaDuplicada()) == []
+
+
+def test_receipt_type_does_not_hide_an_otherwise_matching_duplicate(
+    db: DuckDBPyConnection,
+) -> None:
+    db.execute("ALTER TABLE despesas_current ADD COLUMN tipo_documento INTEGER")
+    db.executemany(
+        "INSERT INTO despesas_current (id_documento, cnpj_cpf_digits, numero, "
+        "valor_documento, data_emissao, tipo_documento) "
+        "VALUES (?, '00000000000001', '123', 10, '2099-01-01', ?)",
+        [(1, 0), (2, 1)],
+    )
+    assert len(candidates(db, R09NotaDuplicada())) == 2
 
 
 @pytest.mark.parametrize(

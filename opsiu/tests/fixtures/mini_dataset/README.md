@@ -78,7 +78,7 @@ All other fixture payees are classified as CNPJ by normalized identifier length.
 ## R09: duplicate invoices
 
 Documents `209900045` and `209900046` share payee, invoice number
-`R09-DUPLICADA`, and gross amount BRL 321.09, but belong to deputies `301` and
+`R09-DUPLICADA`, gross amount BRL 321.09, and issue date 2099-06-01, but belong to deputies `301` and
 `302`. Both documents should be findings. The second document has a BRL 1.00
 deduction and net amount BRL 320.09, checking that duplicate grouping uses the
 gross `valorDocumento` field.

@@ -7,6 +7,13 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Fixed
 
+- R09 version 3 requires usable invoice numbers and the same known issue date
+  for metadata matches. It additionally detects verified byte-identical cached
+  receipts across positive document IDs, preserving raw-file provenance and
+  avoiding double-counting amounts when both criteria match. Missing receipt
+  coverage is explicit; integrity errors abort publication. Bounded
+  `receipts fetch` captures whole candidate groups without overwriting history.
+
 - R12 version 3 excludes the 16 reviewer-selected given-name tokens on both
   sides of surname matching, after accent/case normalization. Independent eligible
   surnames still match; old findings, explanations and decisions remain immutable.
