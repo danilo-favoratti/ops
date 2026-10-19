@@ -1,0 +1,28 @@
+# Paths are relative to the working directory; run commands from opsiu/.
+# Override nested values with environment variables such as OPSIU_SAMPLING__PER_RULE.
+
+[paths]
+data_dir = "../data"
+db_path = "../data/opsiu.duckdb"
+runs_dir = "runs"
+external_dir = "../data/external"
+
+[years]
+from = 2023
+to = 2026
+
+[sampling]
+per_rule = 20
+
+[agents]
+model = "gpt-5.6-terra"
+max_calls_per_run = 20
+live_env_var = "AGENTRIG_RUN_LIVE"
+
+[review]
+reviewer = "local"
+
+[external]
+tse_2024_url = "https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2024.zip"
+tse_2026_url = "https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2026.zip"
+receita_url = "https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/"
