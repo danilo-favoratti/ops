@@ -9,12 +9,12 @@
   {% if latest.opinion is none and annotation.kind == 'parecer' %}{% set latest.opinion = annotation %}{% endif %}
 {% endfor %}
 <section class="panel finding-basis" aria-labelledby="basis-heading">
-  <p class="eyebrow">Por que este achado foi sinalizado · {{ finding.rule_id }} · Documento {{ finding.id_documento }}</p>
+  <p class="eyebrow">{{ rule_title }}</p>
   <h1 id="basis-heading">Fundamento</h1>
   <p class="muted">O fundamento explica o critério aplicado, as evidências que sustentam o achado e os limites da análise.</p>
   {% if latest.opinion %}
-    {{ opinion(latest.opinion.output, true) }}
-    <p class="small muted">Explicação do agente{% if latest.opinion.model == 'scripted' %} · Simulado{% endif %} · {{ timestamp(latest.opinion.created_at) }}. A decisão cabe ao revisor.</p>
+    {{ opinion(latest.opinion.output, explain_display, true) }}
+    <p class="small muted">Explicação do agente com nomes e formatos adaptados para leitura{% if latest.opinion.model == 'scripted' %} · Simulado{% endif %} · {{ timestamp(latest.opinion.created_at) }}. A decisão cabe ao revisor.</p>
   {% elif rule_basis %}
     <p class="basis-prose">{{ rule_basis }}</p>
     <p class="small muted">Fundamento da regra aplicada. Ainda não há explicação do agente para este achado.</p>
@@ -25,9 +25,9 @@
 <nav class="breadcrumb" aria-label="Localização"><a href="/findings">← Achados pendentes</a><span>Documento {{ finding.id_documento }}</span></nav>
 <div class="page-heading detail-heading">
   <div>
-    <p class="eyebrow">{{ finding.rule_id }} · Versão {{ finding.rule_version }}</p>
+    <p class="eyebrow">{{ rule_title }} · {{ finding.rule_id }} · Versão {{ finding.rule_version }}</p>
     <h1>{{ record.nome_parlamentar }}</h1>
-    <p class="lead">{{ record.sigla_uf }}{% if record.sigla_partido %} · {{ record.sigla_partido }}{% endif %} · ID {{ record.numero_deputado_id }} · Competência {{ '%02d'|format(record.mes) }}/{{ record.ano }}</p>
+    <p class="lead">{{ record.sigla_uf }}{% if record.sigla_partido %} · {{ record.sigla_partido }}{% endif %} · Competência {{ '%02d'|format(record.mes) }}/{{ record.ano }}</p>
     {{ severity(finding.severity) }}
     {% if finding.status == 'superseded' %}<span class="badge badge-neutral">Achado substituído</span>{% endif %}
   </div>
@@ -86,7 +86,7 @@
         </div>
         <p class="small muted">Modelo: {{ annotation.model }} · Instrução versão {{ annotation.prompt_version }} · {{ timestamp(annotation.created_at) }}</p>
         {% if annotation.kind == 'parecer' %}
-          {{ opinion(annotation.output) }}
+          {{ opinion(annotation.output, explain_display) }}
         {% else %}
           {{ invoice_review(annotation.output) }}
         {% endif %}

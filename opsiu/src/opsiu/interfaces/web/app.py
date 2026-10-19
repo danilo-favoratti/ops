@@ -22,6 +22,7 @@ from opsiu.domain.errors import DomainError
 from opsiu.domain.findings import evidence_json
 from opsiu.domain.models import Competencia
 from opsiu.domain.rules import registry
+from opsiu.interfaces.web.presentation import ExplanationDisplay
 from opsiu.interfaces.web.runtime import RequestScope
 from opsiu.interfaces.web.security import (
     COOKIE,
@@ -205,7 +206,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 request,
                 scope,
                 "decision_panel.html",
-                {"detail": detail, "error": message},
+                {
+                    "detail": detail,
+                    "error": message,
+                },
                 status=status,
             )
         return render(request, scope, "error.html", {"error": message}, status=status)
@@ -267,6 +271,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
             return {
                 "detail": detail,
+                "rule_title": registry.get_rule(
+                    detail.record.finding.rule_id
+                ).descriptor.title
+                if matches
+                else detail.record.finding.rule_id,
+                "explain_display": ExplanationDisplay(
+                    rule_id=detail.record.finding.rule_id,
+                    rule_title=registry.get_rule(
+                        detail.record.finding.rule_id
+                    ).descriptor.title
+                    if matches
+                    else detail.record.finding.rule_id,
+                    deputy_id=detail.expense.numero_deputado_id,
+                    deputy_name=detail.expense.nome_parlamentar,
+                    category_id=detail.expense.numero_sub_cota,
+                    category_name=detail.expense.descricao,
+                ),
                 "rule_basis": document.fundamento
                 if document is not None and matches
                 else None,
@@ -337,7 +358,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     request,
                     scope,
                     "decision_panel.html",
-                    {"detail": detail, "success": "Decisão registrada no histórico."},
+                    {
+                        "detail": detail,
+                        "success": "Decisão registrada no histórico.",
+                    },
                 )
             return complete(
                 RedirectResponse(f"/findings/{finding_key}", status_code=303), scope
