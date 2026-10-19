@@ -300,3 +300,123 @@ class TseRepository(Protocol):
         run_id: str,
         step_id: str,
     ) -> AbstractContextManager[TseStage]: ...
+
+
+type CnpjFamily = Literal["empresas", "socios", "estabelecimentos"]
+
+
+@dataclass(frozen=True)
+class CnpjSnapshotFile:
+    name: str
+    family: CnpjFamily
+    sha256: str
+    size_bytes: int
+    original_path: str
+
+
+@dataclass(frozen=True)
+class CnpjSnapshotManifest:
+    snapshot_id: str
+    source_directory: str
+    sha256: str
+    size_bytes: int
+    captured_at: datetime
+    run_id: str
+    step_id: str
+    files: tuple[CnpjSnapshotFile, ...]
+
+
+@dataclass(frozen=True)
+class CnpjSnapshot:
+    snapshot_id: str
+    path: Path
+    manifest: CnpjSnapshotManifest
+
+
+class CnpjSnapshotStore(Protocol):
+    def capture(self, directory: Path) -> CnpjSnapshot: ...
+    def load(self, snapshot_id: str) -> CnpjSnapshot: ...
+    def load_latest(self) -> CnpjSnapshot | None: ...
+    def list_snapshots(self) -> tuple[CnpjSnapshot, ...]: ...
+
+
+@dataclass(frozen=True)
+class CnpjOrigin:
+    source_file: str
+    source_sha256: str
+    source_member: str
+    source_record_number: int
+
+
+@dataclass(frozen=True)
+class CnpjCompany:
+    cnpj_root: str
+    razao_social: str
+    natureza_juridica: str
+    origin: CnpjOrigin
+
+
+@dataclass(frozen=True)
+class CnpjPartner:
+    cnpj_root: str
+    tipo_socio: int
+    nome_socio: str
+    qualificacao: str
+    origin: CnpjOrigin
+
+
+@dataclass(frozen=True)
+class CnpjEstablishment:
+    cnpj_root: str
+    cnpj: str
+    cnae_principal: str | None
+    origin: CnpjOrigin
+
+
+type CnpjRecord = CnpjCompany | CnpjPartner | CnpjEstablishment
+
+
+@dataclass(frozen=True)
+class CnpjProgress:
+    family: CnpjFamily
+    source_file: str
+    source_member: str
+    scanned_rows: int
+
+
+@dataclass(frozen=True)
+class CnpjImport:
+    import_id: str
+    snapshot_id: str
+    source_sha256: str
+    roots_sha256: str
+    companies: int
+    partners: int
+    establishments: int
+
+
+class CnpjSource(Protocol):
+    def records(
+        self, snapshot: CnpjSnapshot, roots: frozenset[str]
+    ) -> Iterator[CnpjRecord | CnpjProgress]: ...
+
+
+class CnpjStage(Protocol):
+    def add_batch(self, records: tuple[CnpjRecord, ...]) -> None: ...
+    def publish(self, *, loaded_at: datetime) -> CnpjImport: ...
+
+
+class CnpjRepository(Protocol):
+    def requested_roots(self) -> frozenset[str]: ...
+    def current_import(self) -> CnpjImport | None: ...
+    def canonical_snapshot_id(self, sha256: str) -> str | None: ...
+    def stage(
+        self,
+        *,
+        import_id: str,
+        snapshot: CnpjSnapshot,
+        roots: frozenset[str],
+        roots_sha256: str,
+        run_id: str,
+        step_id: str,
+    ) -> AbstractContextManager[CnpjStage]: ...

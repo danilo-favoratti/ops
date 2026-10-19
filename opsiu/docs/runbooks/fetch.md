@@ -1,10 +1,13 @@
 # Fetch and replay external evidence
 
-## Available source and inputs
+## Available sources
 
-The current command loads TSE candidates for the 2024 municipal and 2026 general
-elections. CNPJ and PDF fetch commands belong to later implementation steps.
-Run from `opsiu/` after `uv sync`:
+`fetch tse` loads candidates for the 2024 municipal and 2026 general elections.
+`fetch cnpj` captures and filters manually downloaded Receita CNPJ bulk files.
+PDF fetching belongs to the next implementation step. Run from `opsiu/` after
+`uv sync`.
+
+## TSE inputs
 
 ```sh
 uv run python3 -m opsiu fetch tse --ano 2024
@@ -24,7 +27,7 @@ Use `OPSIU_PATHS__EXTERNAL_DIR`, `OPSIU_PATHS__DB_PATH`, and
 `OPSIU_PATHS__RUNS_DIR` to isolate storage when testing. Relative paths are
 resolved against the working directory.
 
-## Raw snapshots and local replay
+## TSE raw snapshots and local replay
 
 Each successful download creates an immutable indexed snapshot under
 `paths.external_dir/tse_2024/<snapshot_id>/` or
@@ -48,7 +51,7 @@ concepts. A successfully downloaded payload can fail parsing and remain availabl
 as evidence. In that case, `--replay` selects that same latest raw payload again;
 use an explicit known-good snapshot ID when deliberately replaying older input.
 
-## Candidate loading and history
+## TSE candidate loading and history
 
 The loader reads semicolon-separated candidate CSV in Latin-1 or UTF-8 with a
 BOM. ZIP payloads are read as streams without extracting members to disk. When
@@ -78,6 +81,99 @@ matches the current import is skipped and retains the existing candidate origin.
 A network invocation can still create a new raw snapshot before this skip is
 determined.
 
+## Receita inputs and manual download
+
+Download the Receita CNPJ bulk files manually from the official
+[CNPJ dataset catalog](https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj).
+Use the published [Receita layout](https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf)
+to identify the three required families: `Empresas`, `Socios`, and
+`Estabelecimentos`. Keep the files from one release together in a local
+directory. `fetch cnpj` does not download the national bulk dataset over HTTP.
+
+The files are headerless Latin-1 CSV with semicolon delimiters and respectively
+7, 11, and 30 fields; a UTF-8 BOM also selects the supported UTF-8 encoding.
+Companies and partners are associated with the eight-digit
+CNPJ root; establishments supply the order and check digits needed for a full
+14-digit CNPJ and its principal CNAE. Using establishments prevents assigning
+one branch's principal activity to another branch of the same company.
+
+Ingest the reimbursement years first, then supply the local bulk directory:
+
+```sh
+uv run python3 -m opsiu ingest
+uv run python3 -m opsiu fetch cnpj --from /path/to/receita-release
+```
+
+All three families are required for this import. Keep source files and their
+names intact; do not add a header or combine columns into a custom format.
+Retain all downloaded partitions for the selected release. A locally supplied
+subset cannot establish that the complete national release was searched.
+
+The directory is scanned at its top level. Accepted inputs are family-prefixed
+ZIP or CSV names, such as `Empresas0.zip`, `Socios0.zip`, and
+`Estabelecimentos0.zip`, or extracted files with the official `.EMPRECSV`,
+`.SOCIOCSV`, and `.ESTABELE` suffixes. ZIP members are streamed without extracting
+them to disk. Supply either the archive or its extracted equivalent, avoiding
+duplicate copies of the same records. Unsafe archive paths, duplicate member
+names, and members from a different family fail loading.
+
+## Receita filtering, replay, and history
+
+Capture creates `paths.external_dir/cnpj/<snapshot_id>/manifest.json` and raw
+copies under its `files/` directory. The manifest preserves the original input
+directory, capture time, run and step, and each filename, family, original path,
+SHA-256, and byte count. Its aggregate hash includes the sorted file inventory
+and each file's content identity. No existing snapshot is overwritten.
+
+The loader scans the bulk rows as streams and stores only records whose numeric
+CNPJ roots occur in `despesas_current`. This limits retained data to suppliers
+in the current reimbursement snapshots. It emits progress events every one
+million scanned records. The selected root set belongs to the normalized import
+and is part of the decision to reuse or reload its contents.
+This version selects the numeric CNPJs represented in CEAP; it does not strip
+letters from other roots to manufacture numeric matches.
+
+```sh
+uv run python3 -m opsiu fetch cnpj --replay
+uv run python3 -m opsiu fetch cnpj --snapshot-id SNAPSHOT_ID
+```
+
+Exactly one of `--from`, `--replay`, and `--snapshot-id` is required. Replay uses
+the saved raw files without another download or dependence on the original
+input directory. `--replay` selects the latest local raw snapshot; the explicit
+ID selects an exact snapshot. Source hashes are validated before reuse.
+
+Migration `0005b_cnpj` preserves local snapshot metadata, import history, root
+coverage, companies, partners, and establishments. Publication is atomic:
+failed capture or normalization preserves the previous successful import.
+Current views select successfully published normalized data, while earlier
+snapshots and imported rows remain available as evidence.
+
+The import records every requested root, including roots with no matching rows
+in the supplied files. A covered root without company or partner data is a valid
+no-match result. Coverage identifies the searched root set and supplied input,
+not independent proof that every national partition was present. Conflicting
+company or establishment metadata for the same identity fails publication;
+identical duplicates retain one deterministic source row. Partner rows preserve
+their source positions.
+
+When both the raw content hash and selected roots match the current import,
+normalization is skipped and its original provenance is retained. New current
+expense roots require filtering again, even when the bulk files are unchanged.
+That reload can use the original raw snapshot ID, keeping the external evidence
+identity stable for suppliers already present. The snapshot is not rewritten to
+add filtered database rows.
+
+A raw capture can succeed before normalization fails. The latest raw snapshot
+can therefore differ from the one driving current views; use an explicit
+known-good ID when replaying an older input. A valid import with no retained rows
+still publishes its requested-root coverage and replaces the current filtered
+view while retaining earlier history.
+
+The imported bulk data describes the supplied release. It does not reconstruct
+the company's legal name, establishment activity, or ownership on each expense
+date. R12 and R13 therefore produce review indicators with that limitation.
+
 ## Runs and failure diagnosis
 
 Every invocation prints its run ID first and the intended `report.md` path last.
@@ -90,7 +186,7 @@ uv run python3 -m opsiu runs show RUN_ID --events
 ```
 
 Unsupported years or conflicting replay options are configuration errors.
-Unavailable HTTP sources, corrupt snapshots, malformed candidate files, or
+Unavailable HTTP sources, corrupt snapshots, malformed source files, or
 database failures produce a recorded failed step. Exit code `1` denotes an
 operational failure; configuration errors exit `2`; a completed run exits `0`.
 
@@ -115,7 +211,27 @@ fails the rule; a successfully imported empty candidate set is a valid no-match
 result. These outcomes preserve the distinction between unavailable evidence
 and an imported dataset with no matching candidate.
 
-Importing a different snapshot can change a finding's candidate evidence without
+For Receita evidence, run:
+
+```sh
+uv run python3 -m opsiu check --regras R12,R13
+uv run python3 -m opsiu report findings
+```
+
+[R12](../../.llms/rules/R12-sobrenome-socio.md) compares eligible surname tokens
+with individual partners. A shared token does not establish kinship or ownership
+at the expense date. [R13](../../.llms/rules/R13-fornecedor-incompativel.md) checks
+explicit grocery and driver-service indicators in the Receita legal name or
+the exact establishment's principal CNAE. It does not establish the goods or
+services actually included in an invoice. Both use severity `revisar`.
+
+Both rules fail when a relevant root lacks coverage in a successful current
+import. R12 checks numeric-CNPJ expenses across all categories; R13 checks only
+categories `13` and `120`. After ingesting expenses with new supplier roots,
+replay the bulk snapshot to extend coverage before checking. A covered root
+with no matching data differs from a root that was never included in the import.
+
+Importing a different snapshot can change a finding's external evidence without
 changing `(rule_id, rule_version, id_documento)`. A subsequent check can therefore
 fail with the immutable-conflict behavior in
 [ADR 0009](../adr/0009-immutable-finding-conflicts.md). Preserve the earlier finding

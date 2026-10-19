@@ -3,6 +3,8 @@
 import re
 import unicodedata
 
+from opsiu.domain.policies import R12_COMMON_SURNAMES
+
 
 def normalize_name(value: str) -> str:
     decomposed = unicodedata.normalize("NFD", value)
@@ -19,4 +21,12 @@ def normalized_name_sql(column: str) -> str:
     return (
         f"upper(trim(regexp_replace(strip_accents({column}), "
         "'[^A-Za-z0-9]+', ' ', 'g')))"
+    )
+
+
+def surname_tokens(name: str) -> frozenset[str]:
+    return frozenset(
+        token
+        for token in normalize_name(name).split()[1:]
+        if len(token) >= 4 and token.isalpha() and token not in R12_COMMON_SURNAMES
     )

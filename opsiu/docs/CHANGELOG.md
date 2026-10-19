@@ -7,6 +7,19 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Schema migration `0005b_cnpj`: immutable local Receita snapshots, filtered
+  import history, covered supplier roots, companies, individual/other partners,
+  and establishments, with current views and source/run/step provenance.
+  Loading retains only roots present in current expenses. Unchanged content and
+  root coverage reuse the current import; expanded roots can reuse the original
+  raw snapshot without replacing its identity or previously published history.
+- Rules `R12` and `R13`, version `1`, with `revisar` severity. R12 flags eligible
+  shared surname tokens between a deputy and an individual company partner,
+  with an explicit common-surname and generational stoplist. R13 checks narrow
+  grocery and driver-service indicators against categories `13` and `120`,
+  using Receita legal names and the exact establishment's principal CNAE.
+  Both are review heuristics: neither proves kinship, historical ownership,
+  nor the goods or services actually invoiced.
 - Schema migration `0005a_tse`: immutable TSE candidate and import history with
   snapshot, source-member/record, run, and step provenance, plus current views
   selecting the latest successful import per election year. TSE loading keeps

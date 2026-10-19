@@ -34,6 +34,51 @@ POLICY_VALID_FROM = date(2023, 1, 1)
 # First-round dates define the explicitly planned 120-day publicity window.
 ELECTION_DATES = MappingProxyType({2024: date(2024, 10, 6), 2026: date(2026, 10, 4)})
 
+# Conservative review heuristics, not claims of kinship or invoice contents.
+R12_COMMON_SURNAMES = frozenset(
+    {
+        "ALMEIDA",
+        "ARAUJO",
+        "BARBOSA",
+        "CARVALHO",
+        "COSTA",
+        "DIAS",
+        "FERREIRA",
+        "FILHO",
+        "GOMES",
+        "JUNIOR",
+        "LIMA",
+        "MARTINS",
+        "NASCIMENTO",
+        "NETO",
+        "OLIVEIRA",
+        "PEREIRA",
+        "RIBEIRO",
+        "ROCHA",
+        "RODRIGUES",
+        "SANTOS",
+        "SILVA",
+        "SOBRINHO",
+        "SOUSA",
+        "SOUZA",
+    }
+)
+GROCERY_CNAES = frozenset({"4711301", "4711302", "4712100"})
+GROCERY_NAME_TOKENS = frozenset(
+    {
+        "SUPERMERCADO",
+        "SUPERMERCADOS",
+        "HIPERMERCADO",
+        "HIPERMERCADOS",
+        "MINIMERCADO",
+        "MINIMERCADOS",
+        "MERCEARIA",
+        "MERCEARIAS",
+    }
+)
+DRIVER_CNAES = frozenset({"4923002"})
+DRIVER_NAME_PHRASES = ("COM MOTORISTA", "SERVICO DE MOTORISTA", "SERVICOS DE MOTORISTA")
+
 # numeroSubCota/descricao pairs verified in the 2023 and 2026 source files:
 # 120: LOCAÇÃO OU FRETAMENTO DE VEÍCULOS AUTOMOTORES
 # 122: SERVIÇO DE TÁXI, PEDÁGIO E ESTACIONAMENTO
