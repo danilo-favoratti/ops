@@ -1,0 +1,9 @@
+{
+  "dados": [
+    {"idDocumento": 1, "nomeParlamentar": "Deputada Sintética", "valorLiquido": "1467"},
+    {"idDocumento": 2, "nomeParlamentar": "João Simulado", "valorLiquido": "-12.5"},
+    {"idDocumento": 3, "nomeParlamentar": "LIDERANÇA SINTÉTICA", "cpf": "", "siglaUF": "NA"},
+    {"idDocumento": 4, "cnpjCPF": "01.234.567/0001-89", "numero": "000123", "nested": {"flags": [true, null, false]}},
+    {"idDocumento": 5, "number": 1.25, "large_integer": 123456789012345678901234567890}
+  ]
+}

@@ -21,6 +21,7 @@ dependencies = [
     "python-multipart",
     "agentrig @ git+https://github.com/mtmoreira/agentrig.git@cc585b46f5365cf1997f71704302d477dd5a7685",
     "openai-codex==0.144.4",
+    "ijson>=3.6.0",
 ]
 
 [project.scripts]
@@ -50,6 +51,11 @@ strict = true
 mypy_path = "src"
 files = ["src", "tests"]
 python_version = "3.12"
+
+# ijson has no bundled type information; its boundary is typed in json_source.py.
+[[tool.mypy.overrides]]
+module = ["ijson", "ijson.common"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

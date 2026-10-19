@@ -1,5 +1,6 @@
 """Typed ports and records shared by run orchestration and ledger adapters."""
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
@@ -93,4 +94,22 @@ class PolicyRepository(Protocol):
         A different value for an existing key/date is a conflict, and the whole
         batch must roll back. A new effective date preserves existing versions.
         """
+        ...
+
+
+@dataclass(frozen=True)
+class ExpenseSourceMetadata:
+    source_file: str
+    source_sha256: str
+    size_bytes: int
+
+
+class ExpenseSource(Protocol):
+    @property
+    def metadata(self) -> ExpenseSourceMetadata | None:
+        """Complete-file metadata, available only after successful iteration."""
+        ...
+
+    def __iter__(self) -> Iterator[tuple[dict[str, object], str]]:
+        """Yield raw records and their shared canonical SHA-256 values."""
         ...
