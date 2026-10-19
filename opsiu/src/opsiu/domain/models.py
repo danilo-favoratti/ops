@@ -111,7 +111,7 @@ class Despesa:
     tipo_documento: int | None
     data_emissao: date | None
     valor_documento: Decimal
-    valor_glosa: Decimal
+    valor_glosa: Decimal | None
     valor_liquido: Decimal
     competencia: Competencia
     parcela: int | None
@@ -168,7 +168,7 @@ class Despesa:
             tipo_documento=_optional_integer(raw, "tipoDocumento"),
             data_emissao=_optional_date(raw, "dataEmissao"),
             valor_documento=parse_money(raw.get("valorDocumento")),
-            valor_glosa=parse_money(raw.get("valorGlosa")),
+            valor_glosa=_optional_money(raw, "valorGlosa"),
             valor_liquido=parse_money(raw.get("valorLiquido")),
             competencia=Competencia(
                 _required_integer(raw, "ano"), _required_integer(raw, "mes")

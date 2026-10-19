@@ -7,6 +7,21 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Fixed
 
+- Missing `valorGlosa` is preserved as unknown throughout ingestion, exports,
+  human review, and agent inputs. Zero remains distinct; gross and net amounts,
+  including negative values, and original source/record hashes are unchanged.
+  Invalid supplied deductions and missing required fields still fail the yearly
+  transaction. Normalization failures now identify their source record number.
+- Migration [`0010_nullable_glosa`](../src/opsiu/adapters/duckdb/migrations/0010_nullable_glosa.sql)
+  transactionally rebuilds `despesas` with nullable `valor_glosa`, retaining all
+  rows, constraints, indexes, and the current-source view. Populated upgrade and
+  rollback tests cover existing findings and private agent history.
+- Prompt versions `2` for [explicar-achado](../.llms/tasks/explicar-achado.md)
+  and [revisar-nota](../.llms/tasks/revisar-nota.md), with input schemas
+  `opsiu.parecer-request.v2` and `opsiu.nota-fiscal-request.v2`, explicitly retain
+  null deductions and prohibit inference from gross/net differences. Outputs
+  and deterministic rule versions are unchanged; prior annotations remain
+  immutable. See [ADR 0011](adr/0011-missing-deductions.md).
 - Schema migration [`0007a_findings_lifecycle`](../src/opsiu/adapters/duckdb/migrations/0007a_findings_lifecycle.sql)
   separates immutable finding records
   from append-only supersession events. The `findings` view preserves the

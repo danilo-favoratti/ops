@@ -80,7 +80,11 @@ def _expense(record: FindingExportRecord) -> dict[str, AgentJson]:
             record.data_emissao.isoformat() if record.data_emissao is not None else None
         ),
         "valor_documento": format(record.valor_documento, ".2f"),
-        "valor_glosa": format(record.valor_glosa, ".2f"),
+        "valor_glosa": (
+            format(record.valor_glosa, ".2f")
+            if record.valor_glosa is not None
+            else None
+        ),
         "valor_liquido": format(record.valor_liquido, ".2f"),
         "url_documento": record.url_documento,
     }

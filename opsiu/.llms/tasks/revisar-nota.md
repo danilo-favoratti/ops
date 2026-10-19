@@ -1,5 +1,5 @@
 ---
-prompt_version: "1"
+prompt_version: "2"
 ---
 
 # Ler o texto de uma nota fiscal
@@ -50,6 +50,11 @@ Não use o ramo do fornecedor ou seu nome para inventar itens da nota. Não
 deduza parentesco de sobrenomes nem decida duplicidade a partir de um único
 documento. Esta leitura não torna aditivos os valores sobrepostos de R07/R14
 ou dos grupos de R09 e não estabelece perda comprovada.
+
+O campo `registro.valor_glosa` pode ser `null`: isso significa glosa não
+informada, não glosa zero. Não estime esse valor pela diferença entre bruto e
+líquido nem altere valores negativos fornecidos. Registre a ausência quando
+ela limitar a comparação.
 
 ## Saída obrigatória
 

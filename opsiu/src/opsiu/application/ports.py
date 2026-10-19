@@ -192,7 +192,7 @@ class FindingExportRecord:
     numero: str | None
     data_emissao: date | None
     valor_documento: Decimal
-    valor_glosa: Decimal
+    valor_glosa: Decimal | None
     valor_liquido: Decimal
     url_documento: str | None
     source_record_number: int

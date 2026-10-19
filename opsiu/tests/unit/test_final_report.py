@@ -152,6 +152,24 @@ def test_exact_csv_safe_markdown_and_independent_provenance(tmp_path: Path) -> N
     assert "| R09 | 1 | 1 | R$ 90.071.992.547.409,91 |" in summary
     assert "(deputado-7.md)" in summary
     assert reader.closed and run.status == "completed"
+
+
+def test_missing_deduction_is_blank_in_csv_and_explicit_in_markdown(
+    tmp_path: Path,
+) -> None:
+    original = item()
+    unknown = replace(original, record=replace(original.record, valor_glosa=None))
+    reader, run = Reader((unknown,)), make_run(tmp_path)
+    with run:
+        with run.step("exportar"):
+            export_final_report(run, reader, FileArtifactWriter(tmp_path / "runs", run))
+    directory = tmp_path / "runs" / run.run_id
+    with (directory / "final.csv").open(newline="", encoding="utf-8") as stream:
+        row = next(csv.DictReader(stream))
+    assert row["valor_glosa"] == ""
+    assert row["valor_liquido"] == "90071992547409.90"
+    assert "glosa: não informada" in (directory / "deputado-7.md").read_text()
+    assert run.status == "completed"
     assert run.counters == {
         "deputies_exported": 1,
         "findings_exported": 1,

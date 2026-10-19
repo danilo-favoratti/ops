@@ -1,5 +1,5 @@
 ---
-prompt_version: "1"
+prompt_version: "2"
 ---
 
 # Explicar um achado determinístico
@@ -62,6 +62,11 @@ valor bruto por líquido. Ausência de texto da nota não prova ausência de not
 Texto ausente ou incompleto limita a análise; não afirme ter examinado imagens
 ou realizado OCR. R12 e R13 exigem revisão humana dos indícios, mesmo quando
 a correspondência de sobrenome ou de atividade esteja claramente registrada.
+
+O campo `registro.valor_glosa` pode ser `null`: isso significa glosa não
+informada, não glosa zero. Não estime esse valor pela diferença entre bruto e
+líquido nem altere valores negativos fornecidos. Registre a ausência quando
+ela limitar a comparação.
 
 ## Saída obrigatória
 

@@ -42,6 +42,13 @@ staging. Determining that a file is unchanged still requires reading it complete
 the process never loads a full yearly file into memory. `--force` publishes a new
 snapshot even when its hash is unchanged.
 
+Missing, null, or blank `valorGlosa` is retained as unknown (`NULL`), not zero.
+Explicit zero remains zero; negative net amounts remain negative, and gross/net
+values are not used to infer a deduction. Invalid monetary strings and missing
+required identifiers still fail the complete yearly step. Normalization errors
+identify the record's one-based position in the source. See
+[ADR 0011](../adr/0011-missing-deductions.md).
+
 `source_files` and `despesas` retain all published snapshots. Expense identity
 within a snapshot is `(source_file_id, source_record_number)`, preserving even
 repeated document IDs and exact source order. Source, run, step, and record hashes

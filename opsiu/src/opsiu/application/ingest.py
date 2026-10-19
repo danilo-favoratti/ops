@@ -62,7 +62,12 @@ def ingest(
                 iterator = iter(source)
                 try:
                     for raw, expected_hash in iterator:
-                        expense = Despesa.from_raw(raw)
+                        try:
+                            expense = Despesa.from_raw(raw)
+                        except DomainError as error:
+                            raise DomainError(
+                                f"Registro {count + 1}: {error}"
+                            ) from error
                         if expense.record_sha256 != expected_hash:
                             raise DomainError("source record hash mismatch")
                         if expense.ano != year:

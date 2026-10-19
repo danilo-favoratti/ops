@@ -508,3 +508,25 @@ def test_gateway_requires_active_step_and_valid_rule_before_invocation(
         with pytest.raises(RuntimeError, match="active run step"):
             asyncio.run(adapter.annotate(make_request(), kind="parecer"))
     assert invocations == []
+
+
+def test_missing_deduction_is_null_in_both_versioned_agent_inputs(
+    tmp_path: Path, invocations: list[Invocation]
+) -> None:
+    request = make_request(text="Texto da nota fiscal.")
+    request = replace(request, record=replace(request.record, valor_glosa=None))
+    run = make_run(tmp_path)
+    adapter = make_gateway(run)
+    with run:
+        with run.step("nullable_deduction"):
+            opinion = asyncio.run(adapter.annotate(request, kind="parecer"))
+            invoice = asyncio.run(adapter.annotate(request, kind="nota_fiscal"))
+    assert opinion.failure is None and invoice.failure is None
+    assert len(invocations) == 2
+    for call in invocations:
+        assert call.prompt.version == "2"
+        assert isinstance(call.encoded_input, dict)
+        record = call.encoded_input["registro"]
+        assert isinstance(record, dict)
+        assert record["valor_glosa"] is None
+        assert record["valor_liquido"] == "90071992547409.91"

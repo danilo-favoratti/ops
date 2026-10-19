@@ -74,7 +74,7 @@ class RegistroDespesa:
     numero: Text | None
     data_emissao: DateText | None
     valor_documento: MoneyText
-    valor_glosa: MoneyText
+    valor_glosa: MoneyText | None
     valor_liquido: MoneyText
     url_documento: Text | None
 
@@ -210,7 +210,7 @@ class StrictCodec(Generic[ValueT]):
 
 class ParecerRequestCodec(StrictCodec[ParecerRequest]):
     def __init__(self) -> None:
-        super().__init__(ParecerRequest, "opsiu.parecer-request.v1")
+        super().__init__(ParecerRequest, "opsiu.parecer-request.v2")
 
 
 class ParecerCodec(StrictCodec[Parecer]):
@@ -220,7 +220,7 @@ class ParecerCodec(StrictCodec[Parecer]):
 
 class NotaFiscalRequestCodec(StrictCodec[NotaFiscalRequest]):
     def __init__(self) -> None:
-        super().__init__(NotaFiscalRequest, "opsiu.nota-fiscal-request.v1")
+        super().__init__(NotaFiscalRequest, "opsiu.nota-fiscal-request.v2")
 
 
 class NotaFiscalLeituraCodec(StrictCodec[NotaFiscalLeitura]):

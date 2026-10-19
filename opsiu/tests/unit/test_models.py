@@ -230,6 +230,43 @@ def test_raw_hash_is_canonical_and_precedes_normalization(
     assert record_sha256(changed) != record_sha256(deputy_raw)
 
 
+@pytest.mark.parametrize("missing", [None, "", "  ", "absent"])
+def test_missing_glosa_is_unknown_and_preserves_negative_net_and_hash(
+    deputy_raw: dict[str, object], missing: object
+) -> None:
+    deputy_raw.update(valorDocumento="1247", valorLiquido="-1247", valorGlosa=missing)
+    if missing == "absent":
+        del deputy_raw["valorGlosa"]
+    original = deepcopy(deputy_raw)
+    expense = Despesa.from_raw(deputy_raw)
+    assert expense.valor_glosa is None
+    assert expense.valor_documento == Decimal("1247.00")
+    assert expense.valor_liquido == Decimal("-1247.00")
+    assert expense.record_sha256 == record_sha256(original)
+    assert deputy_raw == original
+    zero = Despesa.from_raw({**original, "valorGlosa": "0.00"})
+    assert zero.valor_glosa == Decimal("0.00")
+    assert expense.record_sha256 != zero.record_sha256
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("valorDocumento", None),
+        ("valorLiquido", None),
+        ("valorGlosa", "invalid"),
+        ("valorGlosa", False),
+        ("valorGlosa", 1.25),
+        ("valorGlosa", "NaN"),
+    ],
+)
+def test_nullable_deduction_does_not_relax_other_money_validation(
+    deputy_raw: dict[str, object], field: str, value: object
+) -> None:
+    with pytest.raises(DomainError):
+        Despesa.from_raw({**deputy_raw, field: value})
+
+
 @pytest.mark.parametrize("invalid", [float("nan"), Decimal("1.00"), date(2026, 1, 1)])
 def test_hash_rejects_values_that_are_not_standard_json(invalid: object) -> None:
     with pytest.raises(DomainError):

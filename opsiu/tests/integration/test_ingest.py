@@ -9,15 +9,151 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
 
+import duckdb
 import pytest
 from typer.testing import CliRunner
 
+from opsiu.adapters.duckdb import migration_runner
 from opsiu.adapters.duckdb.connection import connect_database
+from opsiu.adapters.duckdb.findings_export import DuckDBFindingExportReader
 from opsiu.adapters.duckdb.repository import DuckDBExpenseRepository
+from opsiu.adapters.duckdb.review_repository import DuckDBReviewRepository
 from opsiu.domain.models import Despesa
+from opsiu.domain.record_hash import record_sha256
 
 pytestmark = pytest.mark.integration
 FIXTURE = Path(__file__).parents[1] / "fixtures/mini_dataset/Ano-2099.json"
+
+
+def test_null_glosa_survives_ingestion_exports_review_and_agent_trace(
+    workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from opsiu.interfaces.cli import app
+
+    monkeypatch.setenv("AGENTRIG_RUN_LIVE", "0")
+    source = workspace / "input/Ano-2099.json"
+    base = json.loads(source.read_text())["dados"][39]
+    rows = [
+        {**base, "valorGlosa": None},
+        {**base, "idDocumento": 999001, "valorGlosa": None, "valorLiquido": "-25"},
+        {**base, "idDocumento": 999002, "valorGlosa": "0.00"},
+    ]
+    source.write_text(json.dumps({"dados": rows}), encoding="utf-8")
+    source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+    runner = CliRunner()
+    for arguments in (
+        ["ingest"],
+        ["check", "--regras", "R08"],
+        ["explain", "--regras", "R08"],
+        ["report", "findings"],
+    ):
+        result = runner.invoke(app, arguments)
+        assert result.exit_code == 0, result.exception or result.output
+    with connect_database(workspace / "database.duckdb", read_only=True) as db:
+        stored = db.execute(
+            "SELECT valor_glosa, valor_liquido, record_sha256 FROM despesas_current "
+            "ORDER BY source_record_number"
+        ).fetchall()
+        assert stored == [
+            (None, Decimal("25.00"), record_sha256(rows[0])),
+            (None, Decimal("-25.00"), record_sha256(rows[1])),
+            (Decimal("0.00"), Decimal("25.00"), record_sha256(rows[2])),
+        ]
+        assert db.execute("SELECT sha256 FROM source_files").fetchone() == (
+            source_hash,
+        )
+        records = tuple(DuckDBFindingExportReader(db).active_findings())
+        unknown = next(
+            r for r in records if r.finding.id_documento == int(base["idDocumento"])
+        )
+        assert unknown.valor_glosa is None
+        detail = DuckDBReviewRepository(db).get_finding(unknown.finding.finding_key)
+        assert detail is not None
+        assert detail.expense.valor_glosa is None
+        traces = db.execute(
+            "SELECT input_json, input_schema, prompt_version FROM agent_traces "
+            "WHERE finding_key = ?",
+            [unknown.finding.finding_key],
+        ).fetchall()
+        assert len(traces) == 1
+        assert json.loads(traces[0][0])["registro"]["valor_glosa"] is None
+        assert traces[0][1:] == ("opsiu.parecer-request.v2", "2")
+    repeat = runner.invoke(app, ["ingest"])
+    assert repeat.exit_code == 0
+    rows[0]["valorGlosa"] = "malformed"
+    source.write_text(json.dumps({"dados": rows}), encoding="utf-8")
+    assert runner.invoke(app, ["ingest"]).exit_code == 1
+    with connect_database(workspace / "database.duckdb", read_only=True) as db:
+        assert db.execute("SELECT count(*) FROM source_files").fetchone() == (1,)
+        assert db.execute("SELECT count(*) FROM despesas_current").fetchone() == (3,)
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_nullable_glosa_migration_preserves_existing_audit_history_atomically(
+    workspace: Path, monkeypatch: pytest.MonkeyPatch, failure: bool
+) -> None:
+    from opsiu.interfaces.cli import app
+
+    monkeypatch.setenv("AGENTRIG_RUN_LIVE", "0")
+    migrations = migration_runner.load_migrations()
+    assert migrations[-1].migration_id == "0010_nullable_glosa"
+    with monkeypatch.context() as legacy:
+        legacy.setattr(
+            migration_runner, "load_migrations", lambda directory=None: migrations[:-1]
+        )
+        for arguments in (
+            ["ingest"],
+            ["check", "--regras", "R08"],
+            ["explain", "--regras", "R08"],
+        ):
+            result = CliRunner().invoke(app, arguments)
+            assert result.exit_code == 0, result.exception or result.output
+    with connect_database(workspace / "database.duckdb") as db:
+        tables = (
+            "despesas",
+            "deputados",
+            "source_files",
+            "finding_records",
+            "pareceres",
+            "agent_traces",
+            "agent_trace_records",
+            "runs",
+            "steps",
+        )
+        before = {
+            table: db.execute(f"SELECT * FROM {table} ORDER BY ALL").fetchall()
+            for table in tables
+        }
+        if failure:
+            broken = workspace / "broken-migrations"
+            broken.mkdir()
+            (broken / "0010_nullable_glosa.sql").write_text(
+                migrations[-1].sql + "\nSELECT * FROM deliberately_missing_table;"
+            )
+            with pytest.raises(duckdb.CatalogException):
+                migration_runner.apply_migrations(db, directory=broken)
+            assert db.execute(
+                "SELECT is_nullable FROM information_schema.columns "
+                "WHERE table_name='despesas' AND column_name='valor_glosa'"
+            ).fetchone() == ("NO",)
+            assert db.execute("SELECT count(*) FROM despesas_current").fetchone() == (
+                200,
+            )
+        assert migration_runner.apply_migrations(db) == ("0010_nullable_glosa",)
+        assert migration_runner.apply_migrations(db) == ()
+        assert db.execute(
+            "SELECT is_nullable FROM information_schema.columns "
+            "WHERE table_name='despesas' AND column_name='valor_glosa'"
+        ).fetchone() == ("YES",)
+        assert db.execute("SELECT count(*) FROM despesas_current").fetchone() == (200,)
+        assert db.execute(
+            "SELECT count(*) FROM duckdb_indexes() WHERE table_name='despesas'"
+        ).fetchone() == (3,)
+        for table in tables:
+            assert (
+                db.execute(f"SELECT * FROM {table} ORDER BY ALL").fetchall()
+                == before[table]
+            )
 
 
 @pytest.fixture

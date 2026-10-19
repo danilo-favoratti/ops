@@ -144,6 +144,9 @@ def _validate(item: FinalReportRecord) -> None:
 def _finding_markdown(item: FinalReportRecord) -> Iterator[str]:
     record, decision = item.record, item.decision
     finding, source = record.finding, record.finding.provenance.source
+    glosa = (
+        brl(record.valor_glosa) if record.valor_glosa is not None else "não informada"
+    )
     yield (
         f"## {_text(finding.rule_id)} — documento {finding.id_documento}\n\n"
         f"Chave do achado: `{finding.finding_key}`. "
@@ -158,7 +161,7 @@ def _finding_markdown(item: FinalReportRecord) -> Iterator[str]:
         f"emissão: {_text(record.data_emissao)}.\n\n"
         f"Valor sinalizado: {brl(finding.amount)}. "
         f"Valor bruto: {brl(record.valor_documento)}; "
-        f"glosa: {brl(record.valor_glosa)}; líquido: {brl(record.valor_liquido)}.\n\n"
+        f"glosa: {glosa}; líquido: {brl(record.valor_liquido)}.\n\n"
         f"URL original (texto): {_text(record.url_documento)}.\n\n"
         f"Evidência determinística: {_text(evidence_json(finding.evidence))}.\n\n"
         "### Aprovação humana\n\n"
