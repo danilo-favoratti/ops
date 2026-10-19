@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
 
+from opsiu.domain.policies import Adicional, Cap, CotaUF
+
 type JsonValue = (
     None | bool | int | float | str | list[JsonValue] | dict[str, JsonValue]
 )
@@ -74,3 +76,21 @@ class RunReader(Protocol):
     def get_run(self, run_id: str) -> RunRecord | None: ...
     def get_steps(self, run_id: str) -> tuple[StepRecord, ...]: ...
     def get_events(self, run_id: str) -> tuple[EventRecord, ...]: ...
+
+
+class PolicyRepository(Protocol):
+    def upsert_policies(
+        self,
+        caps: tuple[Cap, ...],
+        quotas: tuple[CotaUF, ...],
+        additions: tuple[Adicional, ...],
+        *,
+        run_id: str,
+        step_id: str,
+    ) -> None:
+        """Insert new dated values; equal existing values are unchanged.
+
+        A different value for an existing key/date is a conflict, and the whole
+        batch must roll back. A new effective date preserves existing versions.
+        """
+        ...

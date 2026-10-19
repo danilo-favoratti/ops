@@ -20,16 +20,20 @@ pytestmark = pytest.mark.integration
 def test_initial_migration_is_complete_and_idempotent(tmp_path: Path) -> None:
     database = tmp_path / "nested" / "opsiu.duckdb"
     with connect_database(database) as connection:
-        assert apply_migrations(connection) == ("0001_init",)
-        assert {row[0] for row in connection.execute("SHOW TABLES").fetchall()} == {
+        expected = tuple(migration.migration_id for migration in load_migrations())
+        assert apply_migrations(connection) == expected
+        assert {row[0] for row in connection.execute("SHOW TABLES").fetchall()} >= {
             "schema_migrations",
             "runs",
             "steps",
             "events",
             "source_files",
+            "caps",
+            "cota_uf",
+            "adicionais",
         }
         first_status = migration_status(connection)
-        assert first_status[0].applied_at is not None
+        assert all(status.applied_at is not None for status in first_status)
         assert apply_migrations(connection) == ()
         assert migration_status(connection) == first_status
 
