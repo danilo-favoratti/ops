@@ -19,6 +19,10 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- [GitHub Actions CI](../../.github/workflows/opsiu.yml) on push and pull request:
+  pinned actions and uv, Python 3.12, dependency caching, locked installation,
+  Ruff lint and format checks, strict mypy, and the offline test suite. CI does
+  not require production data or Codex credentials and disables the live gate.
 - A 50-case synthetic recommendation evaluation set and native AgentRig
   agreement grader. Evaluations use isolated, audited runs, bounded sampling,
   private traces, and separate agreement and valid-output coverage metrics.

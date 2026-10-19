@@ -354,6 +354,11 @@ is part of every run manifest.
 From `opsiu/`: `uv run ruff check .`, `uv run ruff format --check .`,
 `uv run mypy` (strict in `pyproject.toml`), `uv run pytest -m "not eval"`.
 Ordinary tests use scripted/fake runtimes; live evaluation requires its explicit gate.
+The repository-level [GitHub Actions workflow](../.github/workflows/opsiu.yml)
+runs these gates on push and pull request with Python 3.12 and `uv sync --locked`.
+It caches uv dependencies, uses read-only repository permissions, and sets the
+live gate to `0`. The workflow lives at the repository root for GitHub discovery;
+all product source and test code remains under `opsiu/`.
 
 ## Documentation set
 

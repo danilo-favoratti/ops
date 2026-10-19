@@ -172,4 +172,7 @@ with private agent traces, `eval_results.json`, `eval.md`, and the normal run
 ledger. It does not use the production database. See [the evaluation guide](evals/README.md)
 for label assumptions, coverage, scoring, and the explicit live gate.
 
-The CI step is tracked separately in the implementation plan.
+The [GitHub Actions workflow](../.github/workflows/opsiu.yml) runs on every push
+and pull request, using Python 3.12, a locked uv install, cached dependencies,
+and the four offline gates above. Live evaluation is excluded and its gate is
+disabled. No Codex credentials or production data are needed for CI.
