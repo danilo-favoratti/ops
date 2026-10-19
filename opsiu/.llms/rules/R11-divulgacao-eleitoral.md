@@ -1,6 +1,6 @@
 ---
 id: R11
-version: "1"
+version: "2"
 severidade: alta
 fundamento: "Nos 120 dias anteriores à data das eleições gerais e municipais, os deputados que forem candidatos não poderão utilizar recursos da cota para pagar divulgação da atividade parlamentar (Ato da Mesa 40/2012)."
 ---
@@ -55,7 +55,7 @@ na evidência. CPF mascarado ou indisponível não é reconstruído pelo sistema
 A normalização remove acentos, uniformiza maiúsculas e separadores, e compara
 o nome inteiro; não usa sobrenome isolado nem busca aproximada. Identidades
 distintas de candidatos que tornem a correspondência por nome ambígua causam
-falha registrada da regra. Não selecionar arbitrariamente um homônimo.
+achado de severidade `revisar`, preservando todos os candidatos. Não selecionar arbitrariamente um homônimo.
 
 ## Lógica determinística
 
@@ -105,7 +105,8 @@ Para um parlamentar com candidato confirmado na eleição ordinária de 2024:
 CPF integral coincidente permite o cruzamento principal. Sem CPF em um dos
 lados, nome normalizado completo e UF podem permitir o cruzamento alternativo.
 Nome igual com dois CPFs integrais diferentes não permite a correspondência.
-Homônimos que representem candidatos distintos exigem falha e investigação.
+Homônimos que representem candidatos distintos exigem revisão da identidade;
+a ambiguidade não interrompe a avaliação dos demais documentos.
 
 ## Revisões de fonte e o que o agente deve verificar
 
@@ -120,3 +121,15 @@ documentos disponíveis, além do candidato e do método de correspondência
 registrados. Deve citar a fonte TSE e apontar limitações de identidade ou de
 cobertura sem inventar CPF, candidatura ou data. O agente anota o resultado
 determinístico; a aprovação para o relatório final cabe à revisão humana.
+
+## Registros contábeis e identidade (versão 2)
+
+Um documento pode ocorrer em várias linhas da fonte. Manter um achado por
+regra, versão e documento, preservando todas as ocorrências avaliadas em
+`ocorrencias` e os arquivos e hashes em `registros_origem` quando houver
+multiplicidade. O valor agregado soma os valores dessas ocorrências; não
+representa automaticamente um valor recuperável. A proveniência principal
+é uma âncora determinística ordenada por arquivo e hash do registro.
+
+Correspondências ambíguas por nome e UF geram `revisar`, com todos os candidatos
+e `correspondencia_ambigua = true`, sem afirmar a identidade do parlamentar.

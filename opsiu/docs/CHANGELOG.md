@@ -7,6 +7,11 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Fixed
 
+- R01, R09, and R11 version 2 retain repeated-document occurrences and all
+  source record hashes in one finding. R11 ambiguous candidate matches produce
+  review indicators instead of aborting the rule. Synthetic eval labels are
+  re-keyed for R01/R09 version 2; recommendations are unchanged.
+
 - TSE imports recognize the official non-disclosable CPF sentinel `-4` as
   unknown, preserving candidates and snapshot provenance. Existing R11 name/UF
   fallback remains unchanged; malformed CPF values still fail. Updated the

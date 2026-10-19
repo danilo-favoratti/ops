@@ -41,19 +41,23 @@ class DuckDBCheckRepository:
         finally:
             cursor.close()
 
-    def source_origin(self, id_documento: int) -> SourceOrigin:
+    def source_origins(self, id_documento: int) -> tuple[SourceOrigin, ...]:
         rows = self.connection.execute(
             "SELECT DISTINCT d.source_file_id, f.path, f.sha256, d.record_sha256 "
             "FROM despesas_current d JOIN source_files f USING (source_file_id) "
-            "WHERE d.id_documento = ?",
+            "WHERE d.id_documento = ? ORDER BY f.path, d.record_sha256",
             [id_documento],
         ).fetchall()
+        return tuple(SourceOrigin(*(str(value) for value in row)) for row in rows)
+
+    def source_origin(self, id_documento: int) -> SourceOrigin:
+        rows = self.source_origins(id_documento)
         if len(rows) != 1:
             raise DomainError(
                 f"finding document {id_documento} has missing or ambiguous "
                 "current origin"
             )
-        return SourceOrigin(*(str(value) for value in rows[0]))
+        return rows[0]
 
     def current_sources(self) -> tuple[ExpenseSourceMetadata, ...]:
         rows = self.connection.execute(
@@ -105,7 +109,7 @@ class DuckDBCheckRepository:
         try:
             for finding in findings:
                 source = finding.provenance.source
-                if source != self.source_origin(finding.id_documento):
+                if source not in self.source_origins(finding.id_documento):
                     raise DomainError("finding origin is not the current source record")
                 evidence = evidence_json(finding.evidence)
                 existing = self.connection.execute(

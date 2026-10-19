@@ -36,6 +36,9 @@ R01–R05 from the fourth. Nondefault quota margins are rejected because these
 labels describe that pinned configuration. The configured production year
 range does not affect the isolated synthetic year 2099.
 
+R01 and R09 labels use rule version 2 keys. Their synthetic single-occurrence
+inputs and expected recommendations are unchanged.
+
 These are **synthetic reference labels, without human validation**. They are
 not 50 independently audited expenses. There are 26 `manter` labels for exact
 cap and CPF signals under the fixture assumptions, and 24 `revisar` labels for

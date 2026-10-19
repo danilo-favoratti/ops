@@ -10,13 +10,14 @@ from opsiu.domain.rules.base import RuleDescriptor, RuleResult
 class R09NotaDuplicada:
     descriptor = RuleDescriptor(
         id="R09",
-        version="1",
+        version="2",
         title="Possível duplicidade de nota fiscal",
         severity="media",
         fundamento=(
             "O parlamentar assume inteira responsabilidade pela nota fiscal "
             "que apresenta (art. 4º do Ato da Mesa 43/2009)."
         ),
+        combine_document_rows=True,
         needs=("despesas_current",),
     )
     sql = """

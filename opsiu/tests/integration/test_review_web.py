@@ -24,8 +24,8 @@ from opsiu.settings import Settings
 pytestmark = pytest.mark.integration
 FIXTURE = Path(__file__).parents[1] / "fixtures/mini_dataset/Ano-2099.json"
 KEY = finding_key("R08", "1", 209900040)
-DUPLICATE = finding_key("R09", "1", 209900045)
-CAP = finding_key("R01", "1", 209900002)
+DUPLICATE = finding_key("R09", "2", 209900045)
+CAP = finding_key("R01", "2", 209900002)
 
 
 class Page(HTMLParser):

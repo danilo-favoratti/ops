@@ -74,7 +74,7 @@ Portuguese summary. Exporting does not approve the findings.
 ## Failure modes
 
 A missing required relation causes a recorded skipped rule step, preserving its
-previous findings. A missing applicable dated policy, ambiguous source origin,
+previous findings. A missing applicable dated policy, ambiguous source origin in a rule without document-row grouping,
 unknown leadership role, evaluation error, or publication conflict fails that
 rule instead. Its attempted finding changes roll back, and other selected rules
 can continue. A failed database-preparation step prevents rule evaluation.
@@ -115,3 +115,19 @@ Changing the quota margin changes its recorded evidence even if the rule version
 is unchanged. A later publishing run can therefore conflict with existing quota
 findings. Do not delete or rewrite history to make a rerun pass. Resolution needs
 the explicit policy or deliberate rule-version decision described in ADR 0009.
+
+## Multiple accounting rows per document
+
+R01, R09, and R11 version 2 opt into grouping evaluated occurrences by document.
+The finding identity is unchanged. When a document has multiple evaluated
+occurrences or distinct source records, evidence includes the complete ordered
+occurrence list and all current source-file/record hashes for that document.
+The primary provenance is a deterministic anchor, not a claim that the anchor
+row alone contains the entire finding. Raw expense rows remain untouched.
+
+Amounts sum evaluated occurrences: monthly excesses for R01, distinct duplicate
+group gross amounts for R09, and selected accounting-row net amounts for R11.
+They are review indicators, not additive recoverable totals across rules.
+R11 ambiguous name/UF candidate matches retain every candidate and have
+`revisar` severity. They do not assert that any particular homonym is the deputy.
+Other rules continue to fail on ambiguous origins or duplicate finding keys.

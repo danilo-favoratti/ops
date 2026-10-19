@@ -17,6 +17,7 @@ class RuleDescriptor:
     severity: str
     fundamento: str
     needs: tuple[str, ...] = ()
+    combine_document_rows: bool = False
 
     def __post_init__(self) -> None:
         if any(
@@ -39,6 +40,7 @@ class RuleResult:
     id_documento: int
     amount: Decimal
     evidence: Mapping[str, object]
+    severity: str | None = None
 
     def __post_init__(self) -> None:
         if type(self.id_documento) is not int:

@@ -114,8 +114,10 @@ def test_missing_cpf_name_match_is_ambiguous_for_distinct_identities(
     add_candidate(database)
     add_candidate(database, identity="2", cpf="98765432100")
     add_expense(database, cpf=None)
-    with pytest.raises(DomainError, match="ambiguous"):
-        R11DivulgacaoEleitoral().evaluate(rows(database)[0])
+    result = R11DivulgacaoEleitoral().evaluate(rows(database)[0])
+    assert result is not None
+    assert result.severity == "revisar"
+    assert result.evidence["correspondencia_ambigua"] is True
 
 
 def test_missing_successful_import_differs_from_successful_empty_source(

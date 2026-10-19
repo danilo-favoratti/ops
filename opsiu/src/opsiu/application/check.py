@@ -1,12 +1,13 @@
 """Evaluate deterministic rules and publish only complete, successful results."""
 
 from copy import deepcopy
+from decimal import Decimal
 
 from opsiu.application.ports import CheckRepository
 from opsiu.application.runs import Run
 from opsiu.domain.errors import DomainError
 from opsiu.domain.findings import Finding, Provenance, evidence_json
-from opsiu.domain.rules.base import Rule
+from opsiu.domain.rules.base import Rule, RuleResult
 
 
 def check(
@@ -43,28 +44,74 @@ def check(
                 continue
             hashes = run.metadata["source_file_hashes"]
             assert isinstance(hashes, dict)
-            for source in repository.current_sources():
-                hashes[source.source_file] = source.source_sha256
+            for current_source in repository.current_sources():
+                hashes[current_source.source_file] = current_source.source_sha256
             findings: dict[str, Finding] = {}
             candidates = repository.candidates(rule.sql)
             evaluated = 0
+            grouped: dict[int, list[RuleResult]] = {}
             try:
                 for row in candidates:
                     evaluated += 1
                     result = rule.evaluate(row)
                     if result is None:
                         continue
+                    grouped.setdefault(result.id_documento, []).append(result)
+                for document, results in grouped.items():
+                    results.sort(
+                        key=lambda item: evidence_json(
+                            {"valor": item.amount, "evidencia": dict(item.evidence)}
+                        )
+                    )
+                    result = results[0]
+                    evidence = deepcopy(dict(result.evidence))
+                    amount = result.amount
+                    severity = result.severity or descriptor.severity
+                    if descriptor.combine_document_rows:
+                        origins = repository.source_origins(document)
+                        if not origins:
+                            raise DomainError("finding has no current source records")
+                        source = origins[0]
+                        if len(results) > 1 or len(origins) > 1:
+                            evidence = {
+                                "ocorrencias": [
+                                    {
+                                        "valor": item.amount,
+                                        "evidencia": dict(item.evidence),
+                                    }
+                                    for item in results
+                                ],
+                                "registros_origem": [
+                                    {
+                                        "arquivo": origin.source_file,
+                                        "arquivo_sha256": origin.source_sha256,
+                                        "registro_sha256": origin.record_sha256,
+                                    }
+                                    for origin in origins
+                                ],
+                            }
+                            amount = sum(
+                                (item.amount for item in results), Decimal("0.00")
+                            )
+                        if any(item.severity == "revisar" for item in results):
+                            severity = "revisar"
+                    else:
+                        if len(results) != 1:
+                            raise DomainError(
+                                "a rule emitted duplicate finding identities"
+                            )
+                        source = repository.source_origin(document)
                     finding = Finding(
                         descriptor.id,
                         descriptor.version,
                         result.id_documento,
-                        descriptor.severity,
-                        result.amount,
-                        deepcopy(dict(result.evidence)),
+                        severity,
+                        amount,
+                        evidence,
                         Provenance(
                             run.run_id,
                             run.require_step(),
-                            repository.source_origin(result.id_documento),
+                            source,
                             run.record.metadata.code_commit,
                             run.clock.now(),
                         ),

@@ -169,3 +169,74 @@ def test_ambiguous_document_origin_fails_without_publishing(history_root: Path) 
     load(root, [(1, "100.00"), (1, "200.00")])
     check(expected=1)
     assert rows(root) == []
+
+
+def test_combined_document_occurrences_preserve_provenance_and_replay(
+    history_root: Path,
+) -> None:
+    HistoryRule.descriptor = RuleDescriptor(
+        "T99", "2", "Histórico", "revisar", "Teste", combine_document_rows=True
+    )
+    load(history_root, [(1, "100.00"), (1, "200.00"), (2, "50.00")])
+    check()
+    original = rows(history_root)
+    result = rows(
+        history_root, "SELECT amount, evidence_json FROM findings WHERE id_documento=1"
+    )
+    assert result[0][0] == Decimal("300.00")
+    evidence = json.loads(result[0][1])
+    assert len(evidence["ocorrencias"]) == 2
+    assert len(evidence["registros_origem"]) == 2
+    hashes = {item["registro_sha256"] for item in evidence["registros_origem"]}
+    assert hashes == {
+        row[0]
+        for row in rows(
+            history_root,
+            "SELECT record_sha256 FROM despesas_current WHERE id_documento=1",
+        )
+    }
+    check()
+    assert rows(history_root) == original
+    forced = CliRunner().invoke(app, ["ingest", "--anos", "2099", "--force"])
+    assert forced.exit_code == 0
+    check()
+    assert rows(history_root) == original
+    exported = CliRunner().invoke(app, ["report", "findings"])
+    assert exported.exit_code == 0, exported.output
+
+
+def test_real_cap_and_duplicate_rules_accept_accounting_rows(
+    history_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from opsiu.domain.rules.r01_locacao_veiculos import R01LocacaoVeiculos
+    from opsiu.domain.rules.r09_nota_duplicada import R09NotaDuplicada
+
+    monkeypatch.setattr(registry, "RULES", (R01LocacaoVeiculos, R09NotaDuplicada))
+    load(history_root, [(1, "13000.00"), (2, "13000.00"), (2, "0.00")])
+    path = history_root / "input/Ano-2099.json"
+    data = json.loads(path.read_text())
+    for row in data["dados"]:
+        row["numeroSubCota"] = 120
+        row["numero"] = "MESMA-NOTA"
+        row["valorDocumento"] = "13000.00"
+    path.write_text(json.dumps(data))
+    runner = CliRunner()
+    assert runner.invoke(app, ["ingest", "--anos", "2099"]).exit_code == 0
+    result = runner.invoke(app, ["check", "--regras", "R01,R09"])
+    assert result.exit_code == 0, result.output
+    assert rows(
+        history_root,
+        "SELECT rule_id, rule_version, id_documento, amount "
+        "FROM findings ORDER BY rule_id,id_documento",
+    ) == [
+        ("R01", "2", 2, Decimal("13287.00")),
+        ("R09", "2", 1, Decimal("13000.00")),
+        ("R09", "2", 2, Decimal("13000.00")),
+    ]
+    for (encoded,) in rows(
+        history_root, "SELECT evidence_json FROM findings WHERE id_documento=2"
+    ):
+        assert len(json.loads(encoded)["registros_origem"]) == 2
+    original = rows(history_root)
+    assert runner.invoke(app, ["check", "--regras", "R01,R09"]).exit_code == 0
+    assert rows(history_root) == original

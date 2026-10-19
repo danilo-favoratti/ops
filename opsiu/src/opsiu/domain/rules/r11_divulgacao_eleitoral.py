@@ -17,7 +17,7 @@ _ELECTIONS = ", ".join(
 class R11DivulgacaoEleitoral:
     descriptor = RuleDescriptor(
         id="R11",
-        version="1",
+        version="2",
         title="Divulgação durante o período eleitoral vedado",
         severity="alta",
         fundamento=(
@@ -26,6 +26,7 @@ class R11DivulgacaoEleitoral:
             "cota para pagar divulgação da atividade parlamentar "
             "(Ato da Mesa 40/2012)."
         ),
+        combine_document_rows=True,
         needs=("despesas_current", "tse_candidatos"),
     )
     sql = f"""
@@ -85,8 +86,6 @@ class R11DivulgacaoEleitoral:
             )
         if row["identities"] == 0:
             return None
-        if row["identities"] != 1:
-            raise DomainError("R11 name/UF match has ambiguous candidate identities")
         document, amount = row["id_documento"], row["valor_liquido"]
         election, issued = row["election_date"], row["data_emissao"]
         if (
@@ -115,5 +114,7 @@ class R11DivulgacaoEleitoral:
                 "snapshot_id": row["snapshot_id"],
                 "snapshot_sha256": row["source_sha256"],
                 "candidatos": row["candidates"],
+                "correspondencia_ambigua": row["identities"] != 1,
             },
+            severity="revisar" if row["identities"] != 1 else None,
         )

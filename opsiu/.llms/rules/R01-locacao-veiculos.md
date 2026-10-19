@@ -1,6 +1,6 @@
 ---
 id: R01
-version: "1"
+version: "2"
 severidade: alta
 fundamento: "locação ou fretamento de veículos automotores (limite inacumulável de R$ 12.713,00 mensais), permitida contratação de seguro;"
 ---
@@ -66,3 +66,12 @@ respeitando valores líquidos e glosas. Registre limitações de leitura ou aus�
 de comprovantes. O agente produz uma anotação fundamentada; a decisão de disparar
 a regra pertence ao código determinístico, e a aprovação final cabe à revisão
 humana.
+
+## Registros contábeis e identidade (versão 2)
+
+Um documento pode ocorrer em várias linhas da fonte. Manter um achado por
+regra, versão e documento, preservando todas as ocorrências avaliadas em
+`ocorrencias` e os arquivos e hashes em `registros_origem` quando houver
+multiplicidade. O valor agregado soma os valores dessas ocorrências; não
+representa automaticamente um valor recuperável. A proveniência principal
+é uma âncora determinística ordenada por arquivo e hash do registro.
