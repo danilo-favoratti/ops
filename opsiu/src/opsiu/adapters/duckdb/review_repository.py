@@ -10,6 +10,7 @@ from pydantic import TypeAdapter
 
 from opsiu.adapters.duckdb.pdf_repository import DuckDBPdfRepository
 from opsiu.application.ports import (
+    DeputyOption,
     FindingExportRecord,
     JsonValue,
     ReviewAnnotation,
@@ -46,22 +47,26 @@ _PENDING_WHERE = """
                   AND (? IS NULL OR f.rule_id = ?)
                   AND (? IS NULL OR f.amount >= ?)
                   AND (d.source_record_number IS NULL OR (
-                      (? IS NULL OR d.numero_deputado_id = ?)
-                      AND (? IS NULL OR d.sigla_uf = ?)
+                      (? OR d.numero_deputado_id IN (SELECT unnest(?)))
+                      AND (? OR d.sigla_uf IN (SELECT unnest(?)))
                   ))
 """
 
 
 def _pending_parameters(filters: ReviewFilters) -> list[object]:
+    deputies = list(filters.deputy_ids) + (
+        [filters.deputy_id] if filters.deputy_id is not None else []
+    )
+    ufs = list(filters.ufs) + ([filters.uf] if filters.uf is not None else [])
     return [
-        value
-        for value in (
-            filters.rule_id,
-            filters.min_amount,
-            filters.deputy_id,
-            filters.uf,
-        )
-        for _ in range(2)
+        filters.rule_id,
+        filters.rule_id,
+        filters.min_amount,
+        filters.min_amount,
+        not deputies,
+        deputies,
+        not ufs,
+        ufs,
     ]
 
 
@@ -177,6 +182,15 @@ class DuckDBReviewRepository:
         cursor = self.connection.execute(sql, parameters)
         names = [column[0] for column in cursor.description]
         return tuple(dict(zip(names, row, strict=True)) for row in cursor.fetchall())
+
+    def list_deputies(self) -> tuple[DeputyOption, ...]:
+        rows = self.connection.execute(
+            """SELECT numero_deputado_id,
+                      arg_max(nome_parlamentar, (ano, mes, nome_parlamentar)) AS name
+               FROM despesas GROUP BY numero_deputado_id
+               ORDER BY lower(name), numero_deputado_id"""
+        ).fetchall()
+        return tuple(DeputyOption(int(row[0]), str(row[1])) for row in rows)
 
     def list_pending(self, filters: ReviewFilters) -> tuple[ReviewItem, ...]:
         filters = replace(filters)

@@ -1,9 +1,11 @@
   {% if total %}
   <nav class="pagination" aria-label="Páginas de achados">
     <form action="/findings" method="get">
-      {% for name in ('rule', 'deputy', 'uf', 'min_amount') %}
+      {% for name in ('rule', 'min_amount') %}
       <input type="hidden" name="{{ name }}" value="{{ filters[name] }}">
       {% endfor %}
+      {% for deputy in selected_deputies %}<input type="hidden" name="deputy" value="{{ deputy }}">{% endfor %}
+      {% for uf in selected_ufs %}<input type="hidden" name="uf" value="{{ uf }}">{% endfor %}
       <input type="hidden" name="limit" value="{{ page_limit }}">
       <button class="button" type="submit" name="page" value="{{ page - 1 }}"{% if page == 1 %} disabled{% endif %}>← Anterior</button>
       <div class="page-numbers">

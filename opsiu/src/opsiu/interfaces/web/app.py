@@ -16,7 +16,7 @@ from starlette.exceptions import HTTPException
 from opsiu.adapters.agents.prompts import default_llms_directory
 from opsiu.adapters.files.review_pdf import read_review_pdf
 from opsiu.adapters.files.rule_docs import load_rule_docs
-from opsiu.application.ports import JsonValue, ReviewFilters
+from opsiu.application.ports import DeputyOption, JsonValue, ReviewFilters
 from opsiu.application.review import ReviewService
 from opsiu.domain.errors import DomainError
 from opsiu.domain.findings import evidence_json
@@ -235,11 +235,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         }
 
+        deputy_values = [
+            value for value in request.query_params.getlist("deputy") if value
+        ]
+        uf_values = [value for value in request.query_params.getlist("uf") if value]
+
         def load() -> dict[str, object]:
             filters = ReviewFilters(
                 rule_id=raw["rule"] or None,
-                deputy_id=int(raw["deputy"]) if raw["deputy"] else None,
-                uf=raw["uf"] or None,
+                deputy_ids=tuple(int(value) for value in deputy_values),
+                ufs=tuple(uf_values),
                 min_amount=_minimum(raw["min_amount"]),
                 offset=int(raw["offset"] or "0"),
                 limit=int(raw["limit"] or "100"),
@@ -254,8 +259,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             page = min(requested_page, page_count)
             filters = replace(filters, offset=(page - 1) * filters.limit)
             items = service(scope).list_pending(filters)
+            deputies = service(scope).list_deputies()
+            known_ids = {deputy.id for deputy in deputies}
+            deputies += tuple(
+                DeputyOption(id, f"Parlamentar {id} (nome indisponível)")
+                for id in filters.deputy_ids
+                if id not in known_ids
+            )
             return {
                 "items": items,
+                "deputies": deputies,
+                "selected_deputies": filters.deputy_ids,
+                "selected_ufs": filters.ufs,
+                "uf_options": sorted(
+                    set(
+                        (
+                            "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR "
+                            "PE PI RJ RN RS RO RR SC SP SE TO NA"
+                        ).split()
+                    )
+                    | set(filters.ufs)
+                ),
                 "filters": raw,
                 "rules": tuple(rule.descriptor for rule in registry.RULES),
                 "total": total,
@@ -274,7 +298,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return _audited(
                 scope,
                 "review.list",
-                dict(raw),
+                {
+                    **raw,
+                    "deputy": [value for value in deputy_values],
+                    "uf": [value for value in uf_values],
+                },
                 "listar_pendentes",
                 lambda: render(request, scope, "list.html", load()),
             )
@@ -423,7 +451,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         scope = scope_for(request)
 
         def load() -> bytes:
-            if filename not in {"htmx.min.js", "review.css"}:
+            if filename not in {"htmx.min.js", "review.css", "filters.js"}:
                 raise FileNotFoundError(filename)
             return (_DIRECTORY / "static" / filename).read_bytes()
 

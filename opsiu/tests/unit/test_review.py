@@ -11,6 +11,7 @@ import pytest
 from opsiu.adapters.files.jsonl_log import JsonlLedger
 from opsiu.adapters.system import Uuid7Generator
 from opsiu.application.ports import (
+    DeputyOption,
     FindingExportRecord,
     JsonValue,
     ReviewDetail,
@@ -120,6 +121,9 @@ class Repository:
         if self.current is None:
             return ()
         return (ReviewItem(self.current.record, self.current.current_decision),)
+
+    def list_deputies(self) -> tuple[DeputyOption, ...]:
+        return ()
 
     def count_pending(self, filters: ReviewFilters) -> int:
         return len(self.list_pending(filters))
@@ -378,6 +382,10 @@ def test_review_filters_preserve_exact_amount_and_normalize_uf() -> None:
     [
         ("rule_id", "R8"),
         ("deputy_id", True),
+        ("deputy_ids", (True,)),
+        ("deputy_ids", ("123",)),
+        ("ufs", ("SP", "bad")),
+        ("ufs", (1,)),
         ("uf", "SÃO"),
         ("min_amount", Decimal("-0.01")),
         ("min_amount", Decimal("NaN")),
@@ -395,3 +403,9 @@ def test_invalid_review_filters_are_rejected(field: str, value: object) -> None:
     values[field] = value
     with pytest.raises((TypeError, ValueError)):
         ReviewFilters(**values)
+
+
+def test_multiple_review_filters_normalize_and_deduplicate() -> None:
+    filters = ReviewFilters(deputy_ids=(7, 8, 7), ufs=("sp", "DF", "SP"))
+    assert filters.deputy_ids == (7, 8)
+    assert filters.ufs == ("SP", "DF")

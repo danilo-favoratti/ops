@@ -12,7 +12,13 @@ from opsiu.adapters.duckdb.migration_runner import apply_migrations
 from opsiu.adapters.duckdb.review_repository import DuckDBReviewRepository
 from opsiu.adapters.files.jsonl_log import JsonlLedger
 from opsiu.adapters.system import SystemClock, Uuid7Generator, collect_metadata
-from opsiu.application.ports import JsonValue, ReviewDetail, ReviewFilters, ReviewItem
+from opsiu.application.ports import (
+    DeputyOption,
+    JsonValue,
+    ReviewDetail,
+    ReviewFilters,
+    ReviewItem,
+)
 from opsiu.application.runs import Run
 from opsiu.domain.decisions import Decision
 from opsiu.settings import Settings
@@ -101,6 +107,9 @@ class LazyReviewRepository:
 
     def list_pending(self, filters: ReviewFilters) -> tuple[ReviewItem, ...]:
         return DuckDBReviewRepository(self.scope.database()).list_pending(filters)
+
+    def list_deputies(self) -> tuple[DeputyOption, ...]:
+        return DuckDBReviewRepository(self.scope.database()).list_deputies()
 
     def count_pending(self, filters: ReviewFilters) -> int:
         return DuckDBReviewRepository(self.scope.database()).count_pending(filters)

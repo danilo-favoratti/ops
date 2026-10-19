@@ -269,6 +269,15 @@ def test_filters_and_detail_use_archived_expense_after_source_replacement(
     assert pending[0].record.source_record_number == 1
     assert pending[0].record.source_size_bytes == 1234
     assert pending[0].record.nome_parlamentar == "Deputado 7"
+    selected = ReviewFilters(deputy_ids=(7, 8, 99), ufs=("sp", "RJ", "BA"))
+    assert repository.count_pending(selected) == 2
+    assert len(repository.list_pending(selected)) == 2
+    assert repository.count_pending(ReviewFilters(deputy_ids=(7, 99), ufs=("BA",))) == 0
+    assert {option.id: option.name for option in repository.list_deputies()} == {
+        7: "Deputado 7",
+        8: "Deputado 8",
+        99: "Deputado 99",
+    }
     assert repository.list_pending(ReviewFilters(deputy_id=99)) == ()
     assert repository.list_pending(ReviewFilters(uf="BA")) == ()
     assert repository.list_pending(ReviewFilters(rule_id="R99")) == ()

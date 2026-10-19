@@ -151,7 +151,11 @@ def test_list_filters_detail_escape_and_local_htmx(workspace: Path) -> None:
         for source in scripts:
             asset = client.get(source)
             assert asset.status_code == 200
-            assert "htmx" in asset.text.lower()
+            if source.endswith("htmx.min.js"):
+                assert "htmx" in asset.text.lower()
+            else:
+                assert source == "/static/filters.js"
+                assert "data-deputy-picker" in asset.text
         filtered = client.get(
             "/findings", params={"rule": "R08", "deputy": 201, "uf": "SP"}
         )
@@ -305,7 +309,7 @@ def test_numbered_pages_counts_and_filter_preservation(workspace: Path) -> None:
         assert "Mostrando 1–1 de" in first.text
         assert 'aria-current="page"' in first.text
         assert 'name="rule" value="R01"' in first.text
-        assert 'name="uf" value="df"' in first.text
+        assert 'name="uf" value="DF"' in first.text
         assert 'name="min_amount" value="0,00"' in first.text
         assert 'name="limit" value="1"' in first.text
         assert 'value="0" disabled>← Anterior' in first.text
@@ -323,4 +327,32 @@ def test_numbered_pages_counts_and_filter_preservation(workspace: Path) -> None:
         assert "Mostrando 0–0 de 0 achados" in empty.text
         assert 'aria-label="Páginas de achados"' not in empty.text
         invalid = client.get("/findings", params={"page": 0})
+        assert invalid.status_code == 400
+
+
+def test_multiple_deputies_and_states_survive_pagination(workspace: Path) -> None:
+    with TestClient(create_app(Settings()), base_url="http://127.0.0.1") as client:
+        response = client.get(
+            "/findings",
+            params=[
+                ("deputy", "201"),
+                ("deputy", "999999"),
+                ("uf", "SP"),
+                ("uf", "DF"),
+                ("limit", "1"),
+            ],
+        )
+        assert response.status_code == 200
+        assert KEY in response.text
+        assert 'name="deputy" multiple data-deputy-picker' in response.text
+        assert 'value="201" selected' in response.text
+        assert 'value="999999" selected' in response.text
+        assert 'name="deputy" value="201"' in response.text
+        assert 'name="deputy" value="999999"' in response.text
+        assert 'name="uf" value="SP" checked' in response.text
+        assert 'name="uf" value="DF" checked' in response.text
+        assert 'name="uf" value="SP">' in response.text
+        assert 'name="uf" value="DF">' in response.text
+        assert "<script>alert(1)</script>" not in response.text
+        invalid = client.get("/findings", params=[("deputy", "201"), ("deputy", "bad")])
         assert invalid.status_code == 400

@@ -607,6 +607,8 @@ class ReviewFilters:
     min_amount: Decimal | None = None
     limit: int = 100
     offset: int = 0
+    deputy_ids: tuple[int, ...] = ()
+    ufs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.rule_id is not None and (
@@ -623,6 +625,19 @@ class ReviewFilters:
             ):
                 raise ValueError("A UF deve conter duas letras.")
             object.__setattr__(self, "uf", self.uf.upper())
+        if not isinstance(self.deputy_ids, tuple) or any(
+            type(value) is not int for value in self.deputy_ids
+        ):
+            raise ValueError("Os identificadores dos deputados devem ser inteiros.")
+        if not isinstance(self.ufs, tuple) or any(
+            not isinstance(value, str) or re.fullmatch(r"[A-Za-z]{2}", value) is None
+            for value in self.ufs
+        ):
+            raise ValueError("Cada UF deve conter duas letras.")
+        object.__setattr__(self, "deputy_ids", tuple(dict.fromkeys(self.deputy_ids)))
+        object.__setattr__(
+            self, "ufs", tuple(dict.fromkeys(value.upper() for value in self.ufs))
+        )
         if self.min_amount is not None and (
             not isinstance(self.min_amount, Decimal)
             or not self.min_amount.is_finite()
@@ -633,6 +648,12 @@ class ReviewFilters:
             raise ValueError("O limite deve ser um inteiro entre 1 e 1000.")
         if type(self.offset) is not int or self.offset < 0:
             raise ValueError("O deslocamento deve ser um inteiro não negativo.")
+
+
+@dataclass(frozen=True)
+class DeputyOption:
+    id: int
+    name: str
 
 
 @dataclass(frozen=True)
@@ -673,6 +694,8 @@ class RunFactory(Protocol):
 
 
 class ReviewRepository(Protocol):
+    def list_deputies(self) -> tuple[DeputyOption, ...]: ...
+
     def count_pending(self, filters: ReviewFilters) -> int: ...
 
     def list_pending(self, filters: ReviewFilters) -> tuple[ReviewItem, ...]: ...

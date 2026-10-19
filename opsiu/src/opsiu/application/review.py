@@ -1,6 +1,7 @@
 """Human review reads original evidence and appends each decision in its own run."""
 
 from opsiu.application.ports import (
+    DeputyOption,
     JsonValue,
     ReviewDetail,
     ReviewFilters,
@@ -28,6 +29,9 @@ class ReviewService:
         self, filters: ReviewFilters | None = None
     ) -> tuple[ReviewItem, ...]:
         return self.repository.list_pending(filters or ReviewFilters())
+
+    def list_deputies(self) -> tuple[DeputyOption, ...]:
+        return self.repository.list_deputies()
 
     def count_pending(self, filters: ReviewFilters | None = None) -> int:
         return self.repository.count_pending(filters or ReviewFilters())

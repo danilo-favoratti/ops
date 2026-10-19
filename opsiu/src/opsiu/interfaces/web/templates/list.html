@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "macros.html" import money, severity, decision_badge %}
 {% block title %}Achados pendentes{% endblock %}
+{% block scripts %}<script src="/static/filters.js" defer></script>{% endblock %}
 {% block content %}
 <div class="page-heading">
   <div>
@@ -23,13 +24,21 @@
         {% endfor %}
       </select>
     </div>
-    <div class="field">
-      <label for="filter-deputy">ID do deputado</label>
-      <input id="filter-deputy" name="deputy" type="number" step="1" value="{{ filters.deputy }}" placeholder="Todos">
+    <div class="field field-deputies">
+      <label for="filter-deputy">Parlamentares</label>
+      <select id="filter-deputy" name="deputy" multiple data-deputy-picker aria-describedby="deputy-help">
+        {% for deputy in deputies %}<option value="{{ deputy.id }}"{% if deputy.id in selected_deputies %} selected{% endif %}>{{ deputy.name }} · {{ deputy.id }}</option>{% endfor %}
+      </select>
+      <span id="deputy-help" class="small muted">Busque pelo nome ou código e adicione quantos quiser.</span>
     </div>
     <div class="field field-uf">
-      <label for="filter-uf">UF</label>
-      <input id="filter-uf" name="uf" type="text" maxlength="2" pattern="[A-Za-z]{2}" value="{{ filters.uf }}" placeholder="Todas" autocapitalize="characters">
+      <span id="uf-label">UF</span>
+      <details class="uf-picker">
+        <summary aria-labelledby="uf-label uf-summary"><span id="uf-summary">{{ selected_ufs|join(', ') if selected_ufs else 'Todas' }}</span></summary>
+        <div class="uf-options" role="group" aria-labelledby="uf-label">
+          {% for uf in uf_options %}<label><input type="checkbox" name="uf" value="{{ uf }}"{% if uf in selected_ufs %} checked{% endif %}>{{ uf if uf != 'NA' else 'Sem UF' }}</label>{% endfor %}
+        </div>
+      </details>
     </div>
     <div class="field">
       <label for="filter-amount">Valor mínimo (R$)</label>
