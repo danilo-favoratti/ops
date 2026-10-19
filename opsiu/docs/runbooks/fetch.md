@@ -5,7 +5,16 @@
 `fetch tse` loads candidates for the 2024 municipal and 2026 general elections.
 `fetch cnpj` captures and filters manually downloaded Receita CNPJ bulk files.
 `fetch pdf --sample` captures invoice PDFs for sampled findings and extracts
-their text. Run from `opsiu/` after `uv sync`.
+their text. Run from `opsiu/` after `uv sync`. These commands apply pending schema
+migrations before acquiring evidence.
+
+Use the command help to inspect the available options without fetching data:
+
+```sh
+uv run python3 -m opsiu fetch tse --help
+uv run python3 -m opsiu fetch cnpj --help
+uv run python3 -m opsiu fetch pdf --help
+```
 
 ## TSE inputs
 
@@ -262,14 +271,20 @@ was broken, annotate findings with an agent, or approve a final report.
 
 ## Runs and failure diagnosis
 
-Every invocation prints its run ID first and the intended `report.md` path last.
-Inspect `manifest.json`, `events.jsonl`, and `log.jsonl` for the selected year,
-snapshots, import outcome, and failures. Automatic run-report rendering remains
-scheduled for Step 6.2.
+Each command execution prints its run ID first and its `report.md` path last.
+Finalization automatically creates `paths.runs_dir/<run_id>/report.md`, including
+the command, arguments, duration, step outcomes, counters, failure messages,
+and registered artifacts. Failed and aborted executions also receive reports
+when finalization can write them. The report links to `manifest.json`,
+`events.jsonl`, and `log.jsonl` for the selected year, snapshot identities,
+import outcome, and further diagnosis.
 
 ```sh
 uv run python3 -m opsiu runs show RUN_ID --events
 ```
+
+`runs show` prints the report path. See [run history and reports](runs.md) for
+the full inspection workflow, parser-level failures, and report-write failures.
 
 Unsupported years or conflicting replay options are configuration errors.
 Unavailable HTTP sources, corrupt snapshots, malformed source files, or
@@ -321,5 +336,7 @@ Importing a different snapshot can change a finding's external evidence without
 changing `(rule_id, rule_version, id_documento)`. A subsequent check can therefore
 fail with the immutable-conflict behavior in
 [ADR 0009](../adr/0009-immutable-finding-conflicts.md). Preserve the earlier finding
-and review history rather than overwriting them. `report findings` remains an
-export of active unreviewed findings; it does not grant approval.
+and review history rather than overwriting them. [`report findings`](report.md)
+exports all active findings regardless of their human decision; it does not
+grant approval. Use [review](review.md) to record decisions and `report final`
+to export active findings whose latest decision is `aprovado`.

@@ -18,8 +18,9 @@ Paths are relative to the current working directory.
 
 The command first starts a durable run, applies pending migrations, loads dated
 policy rows, then opens one step per yearly file. It prints the run ID first and
-the intended report path last. Until the reporting phase is implemented, inspect
-the manifest, event log, and CLI run details:
+the generated run-report path last. The Portuguese `report.md` summarizes steps,
+durations, counters, and failures; the manifest and event log retain structured
+provenance. Inspect a run with:
 
 ```sh
 uv run python3 -m opsiu runs list
@@ -60,5 +61,13 @@ For an isolated smoke test, copy the synthetic `Ano-2099.json` from
 `tests/fixtures/mini_dataset/` into a temporary input directory, configure temporary
 database and run paths, and invoke `ingest --anos 2099`. It loads 200 expenses and
 15 identities, including one leadership account. A second invocation skips the
-file; `--force` adds historical rows while leaving 200 current expenses. Fixture
-documentation explains the synthetic rule cases for the next implementation phase.
+file; `--force` adds historical rows while leaving 200 current expenses. The
+[fixture documentation](../../tests/fixtures/mini_dataset/README.md) enumerates
+the synthetic rule cases. Use the explicit offline rule selection from the
+[project walkthrough](../../README.md) when external snapshots are unavailable.
+
+After correcting a missing or malformed input, rerun the selected year. A failed
+source does not become current, so it does not require `--force` to retry. Do not
+delete the previous database or source history to bypass a parsing error. For
+run-report publication failures and exit-code interpretation, see
+[run inspection](runs.md).

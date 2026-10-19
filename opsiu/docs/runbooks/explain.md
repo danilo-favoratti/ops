@@ -7,6 +7,8 @@ Its `--consolidar` mode summarizes existing opinions by deputy.
 It does not change a rule's result, supersede findings, record a human decision,
 or approve a final report. Run commands from `opsiu/` after `uv sync`.
 
+Inspect the interface with `uv run python3 -m opsiu explain --help`.
+The command applies pending schema migrations before annotation or consolidation.
 First [ingest](ingest.md) the expense data and run a publishing [check](check.md).
 Optionally [fetch sampled PDFs](fetch.md) before explaining them:
 
@@ -50,6 +52,13 @@ records their identity, and stores model `scripted`, independently of the model
 configured for live execution. These outputs exercise the workflow; they are
 not independent invoice analysis or approval.
 
+To select scripted mode explicitly when the shell might contain a previous live
+opt-in, set the literal gate to `0`:
+
+```sh
+AGENTRIG_RUN_LIVE=0 uv run python3 -m opsiu explain --regras R08 --amostra 1
+```
+
 Live mode requires the literal `AGENTRIG_RUN_LIVE=1` opt-in:
 
 ```sh
@@ -61,6 +70,8 @@ If `agents.live_env_var` names an additional gate, that variable must also equal
 custom gate alone does not enable live mode without `AGENTRIG_RUN_LIVE=1`.
 Live annotations use `agents.model` and the configured read-only sandbox with
 network access denied and no agent tools. The orchestrator supplies the evidence.
+The runtime rechecks the live gates immediately before creating each provider
+client; constructing a runtime does not bypass a later removal of the opt-in.
 
 `OPSIU_CONFIG` selects the TOML file. Nested environment settings, such as
 `OPSIU_AGENTS__MAX_CALLS_PER_RUN`, override file values. Paths remain relative to
@@ -183,17 +194,26 @@ credential-redaction boundary as other agent calls.
 
 ## Runs, failures, and trace inspection
 
-Every invocation prints its run ID first and intended `report.md` path last.
-The run retains `manifest.json`, `events.jsonl`, and `log.jsonl`; automatic
-Markdown run-report rendering remains scheduled for Step 6.2.
+Each command execution prints its run ID first and its `report.md` path last.
+Finalization automatically creates `paths.runs_dir/<run_id>/report.md` from the
+run ledger, including duration, step outcomes, counters, failures, and registered
+artifacts. It links to the retained `manifest.json`, `events.jsonl`, and
+`log.jsonl`. The report includes finding and agent-trace identifiers when they
+appear in ordinary events; it does not read or reproduce private agent prompts,
+inputs, or responses.
 
 ```sh
 uv run python3 -m opsiu runs show RUN_ID --events
 ```
 
-The manifest records the source check, selected findings, mode, prompt identities,
-original expense origins, and any PDF extraction context. `annotation_calls`
-counts budget attempts; `agent_calls` counts invocations with recorded traces.
+`runs show` prints the report path. See [run history and reports](runs.md) for
+inspection, parser-level failures, and report-write failures.
+
+In annotation mode, the manifest records the source check, selected findings,
+mode, prompt identities, original expense origins, and any PDF extraction context.
+Consolidation records the deputy groups and source opinions described above.
+`annotation_calls` counts budget attempts; `agent_calls` counts invocations
+with recorded traces.
 `annotations_saved`, `annotations_skipped`, `annotations_failed`, and
 `budget_exhausted` describe the outcome without exposing private prompt text.
 
@@ -208,5 +228,7 @@ Typed failures become failed annotation steps; later work continues until the
 sample ends or the budget is reached. Earlier successful annotations remain.
 Configuration errors exit `2`, operational failures exit `1`, and completed runs
 exit `0`. A completed run may still contain skips or budget exhaustion, so inspect
-its counters. Human review remains necessary regardless of an agent's confidence
-or its advisory `manter`, `descartar`, or `revisar` recommendation.
+its counters. [Human review](review.md) remains necessary regardless of an agent's
+confidence or its advisory `manter`, `descartar`, or `revisar` recommendation.
+Only active findings whose latest human decision is `aprovado` enter
+[`report final`](report.md).

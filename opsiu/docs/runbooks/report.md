@@ -28,14 +28,15 @@ Each invocation creates a new run and writes:
   deterministic ordering, and exact decimal text using a dot separator.
 - `runs/<run_id>/findings.md`: a Portuguese summary of counts and signaled
   amounts by rule.
-- `manifest.json`, `events.jsonl`, and `log.jsonl`: execution metadata and
+- `manifest.json`, `events.jsonl`, `log.jsonl`, and `report.md`: execution metadata and
   diagnostics. Artifact records contain `path`, `media_type`, `sha256`, and
   `size_bytes`.
 
 The directory prefix follows `paths.runs_dir` when customized. The CLI prints
-its run ID first and the intended `report.md` path last. `findings.md` is the
-actual findings summary in this step; automatic ledger `report.md` generation
-is reserved for Step 6.2.
+its run ID first and the generated `report.md` path last. `findings.md` summarizes
+findings; `report.md` summarizes the export execution, including its duration,
+steps, counters, failures, and links to produced artifacts. The run report is a
+ledger file and does not increment `artifacts_written` or hash itself.
 
 The CSV preserves each finding's original check and source provenance. Deputy,
 invoice, and source details come from the originating expense snapshot rather
@@ -94,9 +95,9 @@ Each new export run writes these immutable artifacts:
 
 All files live directly in `runs/<run_id>/`, or the configured run-directory
 prefix. Their paths, media types, SHA-256 hashes, and byte sizes are recorded as
-artifacts in the manifest and events. The CLI's final `report.md` path remains
-the reserved ledger-report path described above; `final.md` is the actual final
-audit summary.
+artifacts in the manifest and events. The CLI's final `report.md` path identifies
+the generated execution report described above; `final.md` is the final audit
+summary over approved findings.
 
 The approval columns identify the selected human decision and its own run/step.
 They do not replace the finding's original `run_id`, `step_id`, source hashes,
@@ -146,7 +147,10 @@ configuration errors exit `2`. A successful export exits `0`.
 The same failure and exit-code behavior applies to `report final`. Incomplete
 artifact writes are removed; already completed artifacts remain recorded if a
 later export stage fails. Inspect the run status before treating a set of files
-as a completed report.
+as a completed report, and check the process exit code and expected files.
+Run-report publication happens after the command outcome is finalized. A
+publication failure exits `1` and preserves the manifest, whose status may still
+be `completed`; see [run inspection](runs.md) for that distinction.
 
 Rerun either export after resolving an error or when a new report is needed.
 Every attempt uses a distinct run directory, retaining earlier artifacts. Record

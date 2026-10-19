@@ -57,12 +57,12 @@ published transactionally only after the rule completes successfully.
 superseding findings. It still creates a run and can apply pending schema
 migrations. Publication-time immutable conflicts are not checked by a dry run.
 
-Each invocation prints its run ID first and the intended `report.md` path last.
-The run directory contains `manifest.json`, `events.jsonl`, and `log.jsonl`.
+Each invocation prints its run ID first and its generated `report.md` path last.
+The run directory also contains `manifest.json`, `events.jsonl`, and `log.jsonl`.
 The manifest records selected rule versions, source hashes, configuration identity,
 and counters for completed, skipped, and failed rules and finding changes.
-Automatic `report.md` rendering is scheduled for Step 6.2; inspect current runs
-with:
+The Portuguese run report summarizes step outcomes, durations, counters, and
+failure messages. Inspect the structured events with:
 
 ```sh
 uv run python3 -m opsiu runs show RUN_ID --events
@@ -78,6 +78,10 @@ previous findings. A missing applicable dated policy, ambiguous source origin,
 unknown leadership role, evaluation error, or publication conflict fails that
 rule instead. Its attempted finding changes roll back, and other selected rules
 can continue. A failed database-preparation step prevents rule evaluation.
+An existing empty external table is not equivalent to a successful source import:
+R11 requires a successful TSE import for relevant election years, and R12/R13
+require Receita coverage for current supplier roots. Use the [fetch runbook](fetch.md)
+to supply these sources before retrying.
 
 A successful complete rule evaluation supersedes prior active findings that are
 no longer emitted, including replaced rule versions. Skipped rules, failed rules,
@@ -85,7 +89,9 @@ and dry runs never supersede findings.
 
 Exit code `0` means the run completed, which can include skipped rules; inspect
 the counters. Exit code `1` indicates operational errors, and `2` indicates an
-aborted configuration error. Each failure remains in the run's events.
+aborted configuration error. Command failures remain in the run's events;
+[run inspection](runs.md) separately describes report-publication errors that
+can occur after the command outcome has already been finalized.
 
 ## Reruns and immutable history
 
@@ -99,6 +105,11 @@ amount, severity, or originating record hash conflicts with that identity.
 Re-emitting a previously superseded key also fails. The checker rolls back that
 rule's attempted changes and preserves the prior findings and reviews; see
 [ADR 0009](../adr/0009-immutable-finding-conflicts.md).
+
+Supersession appends a lifecycle event and preserves the immutable finding,
+human decisions, PDF links, and agent traces. The canonical `findings` view
+exposes the resulting status; see
+[ADR 0010](../adr/0010-append-only-finding-lifecycle.md).
 
 Changing the quota margin changes its recorded evidence even if the rule version
 is unchanged. A later publishing run can therefore conflict with existing quota

@@ -1,6 +1,6 @@
 # ADR 0004: Retain full AgentRig traces
 
-Status: Accepted; implementation is scheduled in Phase 4.
+Status: Accepted. Implemented in Phase 4.
 
 ## Context
 
@@ -15,9 +15,13 @@ they do not determine rule outcomes. Configure read-only execution, denied netwo
 access, one turn, and no tool calls.
 
 Implement `PrivateTraceRecorder` to append full prompt, input, response, model,
-usage, duration, and status to `agent_traces`. Associate traces with the finding
-and the application's run identifier. Bridge AgentRig events into the same run
-ledger and link stored annotations to their traces.
+usage, duration, and status to terminal `agent_traces` rows. Persist private
+captures incrementally in `agent_trace_records`, retaining partial evidence when
+an invocation fails. Apply credential redaction to captured content. Associate
+traces with the application's run and step, and with the finding for per-finding
+annotations; deputy summaries retain their exact source links separately. Bridge
+safe AgentRig event metadata into the same run ledger, excluding private payloads,
+and link stored annotations to their traces.
 
 Keep Portuguese prompts in versioned task files and record their version and
 SHA-256 hash. Invalid outputs are recorded failures. Use scripted runtimes for

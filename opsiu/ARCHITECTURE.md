@@ -7,8 +7,9 @@ reusable, and reconstructible after the fact.
 ## Principles
 
 1. **Layered, one package.** `opsiu` is a single installable package with four
-   layers. Dependencies point inward only: interfaces → application → domain,
-   adapters → domain. The domain layer imports nothing from the others.
+   layers. Dependencies point inward: application → domain; adapters implement
+   application ports and use domain types; interfaces compose those adapters
+   with application use cases. The domain layer imports nothing from the others.
 2. **Deterministic core, probabilistic edge.** Rules are code and SQL. Agents
    never decide whether a rule was broken; they annotate findings the rules
    produced.
@@ -29,10 +30,12 @@ reusable, and reconstructible after the fact.
 opsiu/
   pyproject.toml                 # uv-managed; ruff, mypy strict, pytest config
   uv.lock
-  opsiu.toml                     # default configuration (paths, caps, sampling)
+  opsiu.toml                     # default paths, audit years, margins and budgets
   src/opsiu/
     domain/                      # pure types and rules; no I/O
-      models.py                  # Despesa, Deputado, Finding, Decision, Provenance
+      models.py                  # Despesa, Competencia, PayerKind, Deputado
+      findings.py                # Finding, Provenance, SourceOrigin
+      decisions.py               # immutable human decisions
       money.py                   # Decimal helpers, BRL parsing
       rules/
         base.py                  # Rule protocol, RuleDescriptor, RuleResult
@@ -44,20 +47,27 @@ opsiu/
       ports.py                   # Protocols: Repository, Ledger, PdfSource, CnpjSource, TseSource, Clock
       runs.py                    # Run lifecycle: start, step, event, finish
       ingest.py                  # load JSON -> despesas
-      check.py                   # run rules -> findings (upsert versioned)
+      check.py                   # run rules -> immutable findings + supersession
       fetch.py                   # external snapshots: tse, cnpj, pdf
       explain.py                 # sample findings -> agents -> pareceres
+      consolidate.py             # exact opinion inputs -> deputy summaries
       review.py                  # record human decisions
-      report.py                  # exports and run reports
+      report.py                  # all-active findings export
+      final_report.py            # current human-approved findings export
+      run_report.py              # pure renderer over public ledger records
     adapters/                    # implementations of ports
       duckdb/
         connection.py
         migrations/              # 0001_init.sql, 0002_...; applied in order, recorded
         repository.py
-        ledger.py                # runs, steps, events, agent_traces
+        ledger.py                # runs, steps, events
+        annotation_repository.py # append-only explanation/invoice annotations
+        summary_repository.py    # immutable summaries and their exact inputs
+        review_repository.py     # original evidence and human decision history
       files/
         json_source.py           # streaming reader for data/Ano-*.json with hashing
-        jsonl_log.py             # append-only runs/<run_id>/events.jsonl
+        jsonl_log.py             # events, logs, manifest and run report
+        artifacts.py             # exclusive run-scoped business artifacts
       external/
         pdf.py                   # download with cache, text extraction
         cnpj_bulk.py             # Receita dump loader, filtered to known CNPJs
@@ -65,13 +75,13 @@ opsiu/
       agents/
         contracts.py             # AgentContract + codecs per agent (PT)
         runtimes.py              # Codex runtime factory, scripted runtimes
-        trace.py                 # PrivateTraceRecorder -> agent_traces table
+        trace.py                 # private trace recorder and invocation wrapper
     interfaces/                  # entry points; thin
       cli/                       # Typer app: ingest, check, fetch, explain, review, report, runs
       web/                       # FastAPI + Jinja2 + HTMX review app
-        app.py  routes/  templates/
+        app.py  runtime.py  security.py  templates/  static/
     settings.py                  # pydantic-settings; loads opsiu.toml + env
-  .llms/                         # agent-facing rules, skills, commands, tasks (PT)
+  .llms/                         # versioned rules, tasks and scripted scenarios (PT)
   docs/
     adr/                         # 0001-layered-package.md, ...
     runbooks/                    # one per CLI command
@@ -81,11 +91,11 @@ opsiu/
   runs/                          # generated: <run_id>/report.md, events.jsonl, manifest.json
   tests/
     unit/  contract/  integration/
-    fixtures/mini_dataset/       # ~200 synthetic records covering every rule
-  evals/
-    labeled_findings.jsonl       # human-labeled set for agent evals
-    graders.py
+    fixtures/mini_dataset/       # 200 synthetic expense records; external fixtures separate
 ```
+
+The layout above describes the implemented package. The evaluation set and
+graders are the separate Step 7.1 deliverable in [IMPLEMENTATION.md](IMPLEMENTATION.md).
 
 ```mermaid
 flowchart TB
@@ -129,11 +139,14 @@ flowchart TB
 - `Finding`: `finding_key` (rule_id, rule_version, id_documento), `severity`,
   `amount`, `evidence` (JSON), `status`
   (`active` / `superseded`), `provenance`.
-- `Provenance`: `run_id`, `step_id`, `source_file`, `source_sha256`,
-  `record_sha256`, `rule_id`, `rule_version`, `code_commit`, `created_at`.
-- `Decision`: `finding_key`, `decision` (`aprovado` / `rejeitado` / `revisar`),
-  `reviewer`, `comment`, `decided_at`. Append-only; the latest row is current.
-- `Parecer`: agent output tied to a `finding_key` and an `agent_trace_id`.
+- `Provenance`: `run_id`, `step_id`, `code_commit`, `created_at`, and a
+  `SourceOrigin` containing source ID/path, file hash and raw-record hash.
+  Rule identity and version belong to the finding itself.
+- `Decision`: `decision_id`, `finding_key`, `decision` (`aprovado` / `rejeitado`
+  / `revisar`), `reviewer`, `comment`, `decided_at`, `run_id`, `step_id`.
+  Append-only; latest `(decided_at, decision_id)` determines the current row.
+- `Parecer`: strict agent output defined in the AgentRig adapter; its persisted
+  annotation links a `finding_key` to an `agent_trace_id` and invocation metadata.
 
 ### Rule protocol
 
@@ -146,7 +159,8 @@ class Rule(Protocol):
 
 - `descriptor.needs` lists required tables (`tse_candidatos`, `cnpj_socios`);
   `check` skips a rule, with a recorded `step` status `skipped`, when a needed
-  table is absent.
+  relation is absent. External rules also validate loaded coverage and snapshot
+  provenance; an existing empty table is not proof that the required source was loaded.
 - `version` is bumped whenever `sql` or `evaluate` changes; `CHANGELOG.md`
   records why. Findings from old versions become `superseded`.
 - `registry.py` is the single source of truth. A test asserts that every
@@ -190,22 +204,36 @@ sequenceDiagram
   agents execute, so AgentRig events land in the same ledger.
 - A failure inside a step is recorded as an `event` with kind `step.failed`
   and the normalized error; the run continues and finishes with status
-  `completed_with_errors`. Only configuration errors abort a run.
+  `completed_with_errors`. Configuration errors and interruptions such as
+  `KeyboardInterrupt` abort a run; ordinary failures outside a step also produce
+  `completed_with_errors`.
 - `manifest.json` captures: command, arguments, `opsiu.toml` hash, git commit
   and dirty flag, Python and package versions, source file hashes, rule
   versions used, model name and prompt versions, counters.
-- `report.md` is rendered from the ledger: what ran, how long, what was
-  produced, what failed, with links to findings and traces.
+- `report.md` is rendered from public ledger records: command and arguments,
+  duration, step states, counters, failures, skipped-step reasons, artifact links,
+  and finding/trace IDs linked to their public events. It never reads private
+  agent captures. It is a ledger file, not a business artifact counted by exporters.
+- File-ledger creation precedes database access, so bootstrap and configuration
+  failures remain inspectable without a usable database. Finalization writes
+  the manifest before an exclusive report file. A report-write failure propagates
+  and leaves the manifest/events intact; the already-recorded command outcome
+  is not rewritten. See [runs](docs/runbooks/runs.md) for recovery.
 
 ### Idempotency
 
 - `ingest` is keyed by `source_sha256`; an unchanged file is skipped.
-- `check` upserts findings by `finding_key`. Rows for a rule version that no
-  longer fire are marked `superseded` in the same run.
+- `check` inserts immutable records by `finding_key`. A complete successful
+  evaluation appends supersession events for older active findings of that rule
+  absent from the new result. Identical results preserve original provenance;
+  changed evidence or recurrence of a superseded identity fails atomically
+  instead of overwriting history (ADR 0009).
 - `fetch` stores snapshots with a `snapshot_id` and `fetched_at`; rules
   reference the snapshot used.
-- `explain` never re-calls an agent for the same `(finding_key, prompt_version,
-  model)` unless `--force`.
+- `explain` skips an existing successful annotation for the same finding,
+  annotation kind, agent, prompt version and actual model unless `--force`.
+  Consolidation instead keys reuse by deputy, exact input hash, model and prompt
+  version. New opinion IDs change that input hash; forced calls append history.
 
 ## Adapters
 
@@ -216,21 +244,25 @@ sequenceDiagram
 | `schema_migrations` | applied migration ids and timestamps |
 | `source_files` | path, sha256, size, ingested_at, run_id |
 | `despesas` | typed records plus `record_sha256`, `source_file_id` |
-| `deputados`, `cota_uf`, `adicionais`, `caps` | reference data with `valid_from` |
-| `tse_candidatos`, `cnpj_empresas`, `cnpj_socios`, `nf_texto` | external snapshots with `snapshot_id` |
+| `despesas_current`, `deputados` (views) | current source projections; historical records remain stored |
+| `cota_uf`, `adicionais`, `caps` | dated policy data with `valid_from` |
+| `snapshots`, `tse_candidatos`, `cnpj_empresas`, `cnpj_socios`, `nf_texto` | external evidence with immutable snapshot references |
 | `runs`, `steps`, `events` | ledger |
 | `finding_records` | immutable versioned findings with provenance columns |
 | `finding_supersessions` | append-only supersession time and originating run |
 | `findings` (view) | stable finding read schema with current lifecycle status |
 | `pareceres` | agent outputs linked to `agent_traces` |
 | `agent_traces` | full prompt, response, model, usage, duration, status |
+| `agent_trace_records` | append-only private trace chunks |
+| `resumos_deputado`, `resumo_fontes` | deputy summaries and exact finding/opinion provenance |
 | `decisions` | append-only human decisions |
+| `findings_current` (view) | finding lifecycle plus latest human decision, including historical findings |
 
 Migrations are plain SQL files applied in order and recorded; a migration is
 never edited after it is committed.
 
 Finding publication inserts immutable records and supersession events in one
-transaction. Foreign keys from PDF and agent records target `finding_records`;
+transaction. Foreign keys from PDFs, agents, summaries and decisions target `finding_records`;
 readers use `findings`. This avoids DuckDB's indexed-update foreign-key limitation
 without removing constraints or changing historical evidence (ADR 0010).
 
@@ -240,17 +272,20 @@ without removing constraints or changing historical evidence (ADR 0010).
   denied, `max_turns=1`, `max_tool_calls=0`, structured output schema.
 - Codecs validate strictly in both directions; invalid output is a recorded
   failure, not a parsed guess.
-- `trace.py` implements AgentRig's `PrivateTraceRecorder` to write prompt,
-  response, and usage into `agent_traces`. The AgentRig event sink writes to
-  the same `events` table via the run ledger.
+- `trace.py` implements AgentRig's `PrivateTraceRecorder` and wraps invocation
+  to capture complete requests and responses. Terminal metadata lives in
+  `agent_traces`; chunked private captures live in `agent_trace_records`.
+  Public AgentRig events enter the same run ledger with payloads excluded.
 - Every agent has a `ScriptedAgentRuntime` fixture; live Codex requires
-  `AGENTRIG_RUN_LIVE=1` and a configured budget (`max_agent_calls_per_run`).
+  literal `AGENTRIG_RUN_LIVE=1` and a positive `agents.max_calls_per_run` budget.
+  A custom gate is additional. Scripted traces record model `scripted`, and
+  failed attempts consume the same per-run budget as successful calls.
 - Prompt text and `prompt_version` live in `.llms/tasks/*.md`; the code loads
   them, hashes them, and records both version and hash in the trace.
 
 ### External sources
 
-- Every fetch writes raw bytes to `data/external/<source>/<snapshot_id>/`
+- Each new capture writes raw bytes to `data/external/<source>/<snapshot_id>/`
   plus a `manifest.json` with URL, headers, sha256, and time. Loaders read
   from the snapshot, never straight from the network, so a load can be
   replayed.
@@ -262,29 +297,42 @@ without removing constraints or changing historical evidence (ADR 0010).
 ### CLI (Typer)
 
 `python3 -m opsiu <command>`: `ingest`, `check`, `fetch tse|cnpj|pdf`,
-`explain`, `review` (starts the web app), `report`, `runs list|show <id>`,
-`db migrate`. Every command prints its `run_id` first and the report path last.
+`explain`, `review` (starts the web app), `report findings|final`,
+`runs list|show <id>`, `db migrate|status`. Invoked command bodies print their
+`run_id` first and report path last. Typer help and argument-parser errors occur
+before command dispatch and do not create runs.
 
 ### Web review app
 
 FastAPI inside the package, calling `application.review` directly. Single local
 user; `reviewer` comes from settings. Each approve/reject is a run with one
-step, so the decision trail is in the ledger like everything else. Templates
-are server-rendered; HTMX handles partial updates. No frontend build.
+step, so the decision trail is in the ledger like everything else. Read requests
+also have independent runs. Templates are server-rendered; locally bundled HTMX
+handles partial updates, with ordinary form submission as a fallback. No frontend
+build. The server binds to loopback and validates Host, form tokens and supplied
+origins. Cached PDF bytes are verified before serving.
+
+The pending list contains active undecided findings and findings whose latest
+decision is `revisar`. Superseded findings keep their evidence and decision history
+but cannot receive new decisions. Final reports select only active findings with
+the latest human decision `aprovado`, from one database snapshot. Agent summaries
+containing other findings do not enter that export.
 
 ## Configuration
 
 `settings.py` loads `opsiu.toml` into typed sections and lets `OPSIU_*`
-environment variables override. Sections: `paths`, `years`, `sampling`,
-`agents` (model, budget), `review` (reviewer name), `external` (URLs). The
-settings hash is part of every run manifest.
+environment variables override. Sections: `paths`, `years`, `sampling`, `rules`
+(quota margin), `agents` (model, budget), `review` (reviewer name), `external`
+(URLs). Precedence is explicit values, nested environment overrides, TOML, then
+defaults. Paths resolve from the working directory. The effective settings hash
+is part of every run manifest.
 
 ## Observability and post-mortem
 
 - Structured JSON logging with `run_id` and `step_id` on every line, written
   to `runs/<run_id>/log.jsonl` and mirrored to stderr at INFO.
-- `opsiu runs show <id>` prints the run, its steps, failures, and produced
-  artifacts; `--events` dumps the full event stream.
+- `opsiu runs show <id>` prints the run, its steps, failures, and report path;
+  `--events` dumps public ledger events. The report links produced artifacts.
 - `docs/postmortem-template.md` sections: summary, timeline (from the ledger),
   impact (findings affected, decisions affected), root cause, what the
   manifest showed, corrective actions, follow-up ADR if the design changed.
@@ -298,10 +346,11 @@ settings hash is part of every run manifest.
 | unit | domain models, each rule against the mini dataset, policies | `unit` |
 | contract | ports vs adapters, agent codecs with scripted runtimes, registry vs `.llms/rules` | `contract` |
 | integration | full CLI commands on the fixture dataset in a temp DuckDB | `integration` |
-| eval | agent recommendations vs `labeled_findings.jsonl` with graders | `eval` (opt-in) |
+| eval (Step 7.1) | agent recommendations vs labeled findings with graders | `eval` (opt-in) |
 
-Gates: `ruff check`, `ruff format --check`, `mypy --strict`, `pytest -m "not
-eval"`. Live Codex tests are excluded unless `AGENTRIG_RUN_LIVE=1`.
+From `opsiu/`: `uv run ruff check .`, `uv run ruff format --check .`,
+`uv run mypy` (strict in `pyproject.toml`), `uv run pytest -m "not eval"`.
+Ordinary tests use scripted/fake runtimes; live evaluation requires its explicit gate.
 
 ## Documentation set
 
@@ -312,8 +361,7 @@ eval"`. Live Codex tests are excluded unless `AGENTRIG_RUN_LIVE=1`.
   how to re-run.
 - `docs/CHANGELOG.md`: rule version bumps, schema migrations, prompt version
   bumps.
-- `runs/<run_id>/report.md`: generated, committed only when a run is worth
-  keeping as evidence.
+- `runs/<run_id>/report.md`: generated and git-ignored with the other run evidence.
 
 ## Implementation order
 
@@ -321,7 +369,7 @@ eval"`. Live Codex tests are excluded unless `AGENTRIG_RUN_LIVE=1`.
    CLI with `runs` and `db migrate`. ADRs 0001–0007.
 2. Domain models, policies, `ingest` with hashing and the mini fixture dataset.
 3. Rule protocol, registry, R01–R10 and R14 with tests; `check` with versioned
-   upsert; registry-vs-`.llms` contract test.
+   publication; registry-vs-`.llms` contract test.
 4. External snapshots and loaders; R11–R13.
 5. Agent contracts, codecs, scripted runtimes, trace recorder; `explain` with
    sampling and budget.
@@ -334,5 +382,5 @@ eval"`. Live Codex tests are excluded unless `AGENTRIG_RUN_LIVE=1`.
 - OCR for scanned PDFs: deferred; `needs_ocr` flag keeps them visible.
 - Year-by-year caps: policies already carry `valid_from`, data still to be
   researched.
-- Disk budget for the Receita dump and PDF cache: set limits in `opsiu.toml`
-  once the first filtered load is measured.
+- Disk budget for the Receita dump and PDF cache: automatic disk-budget settings
+  are not implemented; measure storage needs before designing retention or limits.

@@ -18,7 +18,9 @@ Every command and web action uses the application run lifecycle with a UUIDv7
 identifier, steps, events, and a terminal status. Persist the ledger in `runs`,
 `steps`, and `events`; append the same events to a unique run directory as JSONL.
 Record normalized failures and finish ordinary step failures as
-`completed_with_errors`. Write a manifest when the run finishes.
+`completed_with_errors`. Write a manifest when the run finishes. Step 6.2 adds
+the Portuguese `report.md` rendered from public ledger records after the manifest;
+it does not read private agent content.
 
 Start durable file logging before opening the database. During initial migration,
 buffer the current run's database records and replay them transactionally when

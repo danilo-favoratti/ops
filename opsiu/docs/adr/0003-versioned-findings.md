@@ -1,6 +1,7 @@
 # ADR 0003: Version findings and retain human decisions
 
-Status: Accepted; implementation is scheduled in Phases 2 and 5.
+Status: Accepted. Findings and human decisions were implemented in Phases 2 and 5;
+approved-only final exports were implemented in Step 6.1.
 
 ## Context
 
@@ -22,6 +23,12 @@ rule version, and code commit.
 Append every human decision with reviewer, comment, and timestamp. The latest
 decision is current; previous decisions remain available. Final reports include
 only findings explicitly approved by the reviewer.
+
+[ADR 0009](0009-immutable-finding-conflicts.md) specifies how changed evidence and
+recurring identities fail without rewriting history.
+[ADR 0010](0010-append-only-finding-lifecycle.md) records the later storage
+refinement: immutable finding records, appended supersession events, and the
+compatible `findings` read view.
 
 ## Consequences
 

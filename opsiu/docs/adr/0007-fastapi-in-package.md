@@ -1,6 +1,6 @@
 # ADR 0007: A local FastAPI review app in the package
 
-Status: Accepted; implementation is scheduled in Phase 5.
+Status: Accepted. Implemented in Phase 5.
 
 ## Context
 
@@ -12,7 +12,8 @@ manually editing database rows.
 
 Implement the review interface with FastAPI inside the existing `opsiu` package.
 Render Portuguese pages with Jinja2 and use HTMX for partial updates. Start the
-local app through the `review` CLI command; no separate frontend build is required.
+local app through the `review` CLI command, bound to `127.0.0.1`; no separate
+frontend build is required.
 
 Routes call `application.review` directly. Provide a filtered findings list,
 finding detail with provenance and invoice material, and review actions with a

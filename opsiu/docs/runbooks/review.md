@@ -15,6 +15,9 @@ uv run python3 -m opsiu review
 uv run python3 -m opsiu review --port 8766
 ```
 
+Use `uv run python3 -m opsiu review --help` to inspect startup options without
+opening a listener.
+
 The default address is `http://127.0.0.1:8765`. An explicit port changes only the
 port; the listener remains on `127.0.0.1`. Open the displayed local address in a
 browser. Keep the terminal running while reviewing and stop the server with
@@ -47,7 +50,10 @@ confirmed loss or an amount to recover.
 The list is available at `/` and `/findings`; query parameters are `rule`,
 `deputy`, `uf`, `min_amount`, and `offset`. Amounts accept a decimal dot or comma,
 for example `min_amount=100.50` or `min_amount=100,50`, without thousands
-separators. The finding detail is `/findings/{finding_key}`.
+separators. Each page contains at most 100 findings, ordered by severity
+(`alta`, `media`, `revisar`), amount descending, then finding key. Filters use
+the finding's original expense identity. The finding detail is
+`/findings/{finding_key}`.
 
 Open a finding to inspect its original expense record, deterministic rule text
 and version, evidence, agent annotations, available PDF/text, and decision
@@ -61,11 +67,13 @@ confidence or recommendations do not constitute human approval. Missing PDFs,
 missing extracted text, and `needs_ocr` leave evidence gaps; review does not
 download invoices, perform OCR, or run agents automatically.
 
-The invoice link serves the verified local PDF cache. A missing cache returns
-`404`; a path, hash, or size conflict returns `409` instead of serving uncertain
-bytes. Use the [PDF fetch workflow](fetch.md) to capture missing invoices or
-explicitly refresh a failed cache. A rule-text version mismatch is shown as
-unavailable evidence rather than silently substituting a newer rule document.
+The archived-PDF link, `/findings/{finding_key}/pdf`, serves the verified local
+PDF cache. A missing cache returns `404`; a path, hash, or size conflict returns
+`409` instead of serving uncertain bytes. A separate original-document link
+opens the source URL when it is valid HTTP(S). Use the
+[PDF fetch workflow](fetch.md) to capture missing invoices or explicitly refresh
+a failed cache. A rule-text version mismatch is shown as unavailable evidence
+rather than silently substituting a newer rule document.
 
 Keep the rule's limitations visible when deciding. In particular, accumulated
 quota findings and duplicate-invoice findings can overlap in amount. Shared
@@ -81,17 +89,21 @@ is allowed; the configured reviewer name must be nonempty.
 
 Every submitted decision creates its own `review.decide` run with one
 `registrar_decisao` step. The stored decision includes the exact finding key,
-decision, reviewer, comment, timestamp, run, and step. The latest decision is
-current; earlier decisions remain in the history. A later decision appends a
-new row rather than replacing the earlier judgment. Approving a finding does
-not change its severity or deterministic evidence.
+decision, reviewer, comment, timestamp, run, and step. The latest timestamp is
+current, with the highest decision ID breaking a timestamp tie; earlier
+decisions remain in the history. A later decision appends a new row rather than
+replacing the earlier judgment. Approving a finding does not change its severity
+or deterministic evidence.
 
-The browser updates the decision section through HTMX, with a normal detail-page
-redirect when submitting without HTMX. Decision history is chronological. Forms
-include a CSRF token tied to a same-site cookie; if a form is rejected because
-its token is stale or missing, reload the local detail page before resubmitting.
+The browser updates the decision section through locally bundled HTMX, with a
+normal detail-page redirect when submitting without JavaScript. Styles and
+scripts are served locally without a CDN. Decision history is chronological.
+Forms include a signed CSRF token tied to a same-site cookie; if a form is
+rejected because its token is stale or missing, reload the local detail page
+before resubmitting. Restarting the server also invalidates earlier form tokens.
 Requests use a loopback host. The Origin header, or Referer when Origin is
 absent, must match the local page's origin when supplied.
+Cross-site requests identified by `Sec-Fetch-Site` are rejected as well.
 An invalid host returns `400`; invalid CSRF tokens or origins return `403`.
 
 Agent recommendations never change this queue automatically. A recommendation
@@ -101,9 +113,12 @@ is `aprovado`, with decision provenance and opinion summaries.
 
 ## Runs, failures, and verification
 
-The launch command prints its run ID first and intended `report.md` path when
-the server finishes. Each decision has an independent run identity. Inspect
-the corresponding `manifest.json`, `events.jsonl`, and `log.jsonl`, or use:
+The launch command prints its run ID first and its `report.md` path when the
+server finishes. Finalization automatically generates
+`paths.runs_dir/<run_id>/report.md` with the command, duration, step outcomes,
+counters, failures, and registered artifacts. Each decision has an independent
+run identity and report. Inspect the report and its links to `manifest.json`,
+`events.jsonl`, and `log.jsonl`, or use:
 
 ```sh
 uv run python3 -m opsiu runs show RUN_ID --events
@@ -112,16 +127,19 @@ uv run python3 -m opsiu runs show RUN_ID --events
 Page, PDF, and local asset requests also create audit runs. The
 `X-OPSIU-Run-ID` response header identifies the request's run; the page includes
 the run identity for inspection. Browser reads therefore appear alongside
-decisions in execution history.
+decisions in execution history and receive their own reports on finalization.
 
 Decision events contain identifiers and decision metadata. The comment remains
-in the decision record rather than ordinary event text. Failed requests do not
-produce a successful decision: missing or superseded findings, invalid input,
-and storage errors are recorded as failures, and prior decisions remain intact.
+in the decision record rather than ordinary event text. Missing or superseded
+findings and invalid input are rejected without appending a decision. Earlier
+decisions remain intact. If a response or finalization fails after a decision
+has been saved, that decision remains recorded; inspect the finding's history
+before resubmitting.
 
 A rejected CSRF/origin check joins an existing database audit ledger without
 running migrations or reading review data. If the database is missing or
 unavailable, the rejection still retains its file-based run evidence.
 
-Automatic Markdown run reports are scheduled for Step 6.2. The current audit
-artifacts and decision history provide the verification trail in the meantime.
+`runs show` prints the report path. See [run history and reports](runs.md) for
+the inspection workflow, exit codes, and the behavior when report generation
+itself fails.
