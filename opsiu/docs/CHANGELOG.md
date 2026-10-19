@@ -7,6 +7,12 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Prompt version `1` for `explicar-achado`, `revisar-nota`, and
+  `consolidar-deputado`: Portuguese instructions require strict structured
+  annotations from supplied evidence, treat source text as untrusted data,
+  forbid tools/network use, and reserve rule decisions and approval for their
+  deterministic and human owners. Prompts preserve uncertainty, overlapping
+  amounts, surname-matching limitations, and null invoice facts when unknown.
 - Schema migration `0006_nf_texto`: immutable PDF text extractions with raw
   snapshot identity, decoded PDF path/hash/size, extractor name and version,
   text hash, page count, OCR-needed flag, and run/step provenance. The
