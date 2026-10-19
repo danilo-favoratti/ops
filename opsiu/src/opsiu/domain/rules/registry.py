@@ -12,6 +12,9 @@ from opsiu.domain.rules.r04_seguranca import R04Seguranca
 from opsiu.domain.rules.r05_cursos_eventos import R05CursosEventos
 from opsiu.domain.rules.r06_auxilio_moradia import R06AuxilioMoradia
 from opsiu.domain.rules.r07_cota_uf import R07CotaUF
+from opsiu.domain.rules.r08_pagamento_cpf import R08PagamentoCPF
+from opsiu.domain.rules.r09_nota_duplicada import R09NotaDuplicada
+from opsiu.domain.rules.r10_prazo_reembolso import R10PrazoReembolso
 from opsiu.domain.rules.r14_liderancas import R14Liderancas
 
 RULES: tuple[type[Rule], ...] = (
@@ -22,6 +25,9 @@ RULES: tuple[type[Rule], ...] = (
     R05CursosEventos,
     R06AuxilioMoradia,
     R07CotaUF,
+    R08PagamentoCPF,
+    R09NotaDuplicada,
+    R10PrazoReembolso,
     R14Liderancas,
 )
 

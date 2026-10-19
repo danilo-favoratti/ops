@@ -7,6 +7,13 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Rules `R08`–`R10`, version `1`: payments to CPF outside category exceptions
+  (`R08`, high severity), potential duplicate invoices sharing payee, exact
+  number, and gross amount (`R09`, medium severity), and issue-to-competence
+  intervals strictly over 90 days (`R10`, medium severity). Portuguese rule
+  documents describe the broad category exceptions, the lack of a direct
+  duplicate-invoice clause in the supplied source, overlapping duplicate
+  amounts, and the absence of actual submission dates in the monthly proxy.
 - Rules `R07` and `R14`, version `1`, with medium severity and explicit
   approximate evidence: shared cumulative annual quota calculation includes
   zero-spend months, dated monthly policies, and no carryover between years.
