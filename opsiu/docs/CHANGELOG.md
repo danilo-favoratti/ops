@@ -7,6 +7,11 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Fixed
 
+- TSE imports recognize the official non-disclosable CPF sentinel `-4` as
+  unknown, preserving candidates and snapshot provenance. Existing R11 name/UF
+  fallback remains unchanged; malformed CPF values still fail. Updated the
+  Receita CNPJ catalog URL to the official shared-folder interface.
+
 - Missing `valorGlosa` is preserved as unknown throughout ingestion, exports,
   human review, and agent inputs. Zero remains distinct; gross and net amounts,
   including negative values, and original source/record hashes are unchanged.

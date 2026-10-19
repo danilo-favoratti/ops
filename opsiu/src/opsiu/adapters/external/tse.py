@@ -28,7 +28,7 @@ _FIELDS = {
     "CD_TIPO_ELEICAO",
 }
 _STATES = frozenset({*(quota.uf for quota in COTAS_UF), "BR"})
-_MISSING = frozenset({"", "-1", "-3", "#NULO#", "#NE#", "NULO", "NA"})
+_MISSING = frozenset({"", "-1", "-3", "-4", "#NULO#", "#NE#", "NULO", "NA"})
 
 
 def _cpf(value: str) -> str | None:

@@ -135,6 +135,7 @@ def test_invalid_zip_members_never_extract_files(
         ("ANO_ELEICAO", "WRONG_HEADER"),
         ("2024;1001", "2026;1001"),
         ("01234567890", "invalid-cpf"),
+        ("01234567890", "-5"),
         ("06/10/2024", "not-a-date"),
         (";SP;", ";XX;"),
         (";1001;", ";not-an-id;"),
@@ -176,3 +177,20 @@ def test_pure_and_sql_name_normalization_agree(name: str) -> None:
             f"SELECT {normalized_name_sql('name')} FROM (SELECT ? AS name)", [name]
         ).fetchone()
     assert result == (normalize_name(name),)
+
+
+@pytest.mark.parametrize("value", ["-4", " -4 "])
+def test_undisclosed_cpf_keeps_candidate_and_source(tmp_path: Path, value: str) -> None:
+    data = (
+        FIXTURE.read_text(encoding="utf-8-sig")
+        .replace("01234567890", value)
+        .encode("utf-8-sig")
+    )
+    raw = snapshot(tmp_path, data)
+    loaded = tuple(TseCandidateSource().candidates(raw, 2024))
+    assert len(loaded) == 2
+    assert loaded[0].cpf is None
+    assert loaded[0].candidate_id == "1001"
+    assert loaded[0].nome_normalizado == "JOSE DA SILVA"
+    assert loaded[0].source_record_number == 1
+    assert raw.path.read_bytes() == data

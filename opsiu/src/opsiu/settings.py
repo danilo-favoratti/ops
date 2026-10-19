@@ -81,7 +81,7 @@ class ExternalSettings(SettingsSection):
         "https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2026.zip"
     )
     receita_url: HttpUrl = HttpUrl(
-        "https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/"
+        "https://arquivos.receitafederal.gov.br/index.php/s/YggdBLfdninEJX9"
     )
 
 

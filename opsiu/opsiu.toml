@@ -28,4 +28,4 @@ reviewer = "local"
 [external]
 tse_2024_url = "https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2024.zip"
 tse_2026_url = "https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2026.zip"
-receita_url = "https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/"
+receita_url = "https://arquivos.receitafederal.gov.br/index.php/s/YggdBLfdninEJX9"

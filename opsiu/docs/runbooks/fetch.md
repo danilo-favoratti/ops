@@ -75,6 +75,11 @@ Required columns are `SQ_CANDIDATO`, `ANO_ELEICAO`, `NR_CPF_CANDIDATO`,
 supplementary elections are outside this import. Missing required columns and
 malformed values fail rather than guessing dates or election types.
 
+The `leiame.pdf` bundled with the official candidate archives defines `-4`
+as a non-disclosable numeric value. CPF `-4` is stored as null, retaining the
+candidate and original snapshot; R11 uses its existing name/UF fallback when
+CPF is unavailable. Unknown malformed CPF values still fail publication.
+
 Names are normalized consistently for candidate matching, while each stored
 candidate retains its source member and record position. Repeated rows for the
 same `SQ_CANDIDATO` are deduplicated when their candidate metadata agrees;
@@ -340,3 +345,12 @@ and review history rather than overwriting them. [`report findings`](report.md)
 exports all active findings regardless of their human decision; it does not
 grant approval. Use [review](review.md) to record decisions and `report final`
 to export active findings whose latest decision is `aprovado`.
+
+## Current Receita download location
+
+The former `/dados/cnpj/dados_abertos_cnpj/` URL returns 404. The official
+[CNPJ share](https://arquivos.receitafederal.gov.br/index.php/s/YggdBLfdninEJX9)
+is the current catalog. Select one monthly release and download every Empresas,
+Socios, and Estabelecimentos partition into one directory, then use
+`fetch cnpj --from` as above. The catalog URL is not a ZIP file; the CLI still
+imports a supplied local release and does not automatically download the catalog.

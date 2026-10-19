@@ -64,7 +64,7 @@ def tse_server() -> Iterator[TseServer]:
         candidate_zip(
             [
                 ("100", "00000010155", "Nome eleitoral diferente", "DF"),
-                ("200", "#NULO#", "José de Ávila", "SP"),
+                ("200", "-4", "José de Ávila", "SP"),
                 ("300", "00000030355", "Nome Coincidente", "RJ"),
             ]
         ),
