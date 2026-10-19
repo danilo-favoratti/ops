@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import money, severity, decision_badge %}
+{% from "macros.html" import document_label, money, severity, decision_badge %}
 {% block title %}Achados pendentes{% endblock %}
 {% block scripts %}<script src="/static/filters.js" defer></script>{% endblock %}
 {% block content %}
@@ -85,7 +85,7 @@
           <td>
             <strong class="cell-title">{{ record.nome_parlamentar }}</strong>
             <span class="cell-meta">{{ record.sigla_uf }}{% if record.sigla_partido %} · {{ record.sigla_partido }}{% endif %} · ID {{ record.numero_deputado_id }}</span>
-            <span class="cell-meta">Documento {{ record.finding.id_documento }} · {{ '%02d'|format(record.mes) }}/{{ record.ano }}</span>
+            <span class="cell-meta">{{ document_label(record.finding.id_documento) }} · {{ '%02d'|format(record.mes) }}/{{ record.ano }}</span>
           </td>
           <td><strong>{{ record.finding.rule_id }}</strong><span class="cell-meta">Versão {{ record.finding.rule_version }}</span></td>
           <td>{{ severity(record.finding.severity) }}</td>

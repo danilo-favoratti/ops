@@ -8,7 +8,12 @@ from duckdb import DuckDBPyConnection, StatementType
 
 from opsiu.application.ports import ExpenseSourceMetadata, FindingChanges
 from opsiu.domain.errors import DomainError
-from opsiu.domain.findings import Finding, SourceOrigin, evidence_json
+from opsiu.domain.findings import (
+    Finding,
+    SourceOrigin,
+    evidence_json,
+    source_record_identity,
+)
 
 
 class DuckDBCheckRepository:
@@ -41,12 +46,19 @@ class DuckDBCheckRepository:
         finally:
             cursor.close()
 
-    def source_origins(self, id_documento: int) -> tuple[SourceOrigin, ...]:
+    def source_origins(
+        self,
+        id_documento: int,
+        *,
+        source_year: int | None = None,
+        record_sha256: str | None = None,
+    ) -> tuple[SourceOrigin, ...]:
         rows = self.connection.execute(
             "SELECT DISTINCT d.source_file_id, f.path, f.sha256, d.record_sha256 "
             "FROM despesas_current d JOIN source_files f USING (source_file_id) "
-            "WHERE d.id_documento = ? ORDER BY f.path, d.record_sha256",
-            [id_documento],
+            "WHERE d.id_documento = ? AND (? IS NULL OR f.source_year = ?) "
+            "AND (? IS NULL OR d.record_sha256 = ?) ORDER BY f.path, d.record_sha256",
+            [id_documento, source_year, source_year, record_sha256, record_sha256],
         ).fetchall()
         return tuple(SourceOrigin(*(str(value) for value in row)) for row in rows)
 
@@ -109,8 +121,26 @@ class DuckDBCheckRepository:
         try:
             for finding in findings:
                 source = finding.provenance.source
-                if source not in self.source_origins(finding.id_documento):
+                origin = self.connection.execute(
+                    "SELECT f.path, f.sha256, f.source_year FROM despesas_current d "
+                    "JOIN source_files f USING (source_file_id) "
+                    "WHERE d.id_documento=? AND d.source_file_id=? "
+                    "AND d.record_sha256=? LIMIT 1",
+                    [finding.id_documento, source.source_file_id, source.record_sha256],
+                ).fetchone()
+                if origin is None or origin[:2] != (
+                    source.source_file,
+                    source.source_sha256,
+                ):
                     raise DomainError("finding origin is not the current source record")
+                if finding.record_identity and (
+                    origin[2] is None
+                    or finding.record_identity
+                    != source_record_identity(int(origin[2]), source.record_sha256)
+                ):
+                    raise DomainError(
+                        "finding identity does not match its source record"
+                    )
                 evidence = evidence_json(finding.evidence)
                 existing = self.connection.execute(
                     "SELECT severity, amount, evidence_json, record_sha256, status "
@@ -140,12 +170,18 @@ class DuckDBCheckRepository:
                         )
                     unchanged += 1
                     continue
+                identity_column = ", record_identity" if finding.record_identity else ""
+                identity_value = (
+                    [finding.record_identity] if finding.record_identity else []
+                )
                 self.connection.execute(
                     "INSERT INTO finding_records (finding_key, rule_id, rule_version, "
                     "id_documento, severity, amount, evidence_json, "
                     "run_id, step_id, source_file_id, "
-                    "record_sha256, code_commit, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "record_sha256, code_commit, created_at" + identity_column + ") "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+                    + (", ?" if identity_value else "")
+                    + ")",
                     [
                         finding.finding_key,
                         rule_id,
@@ -160,7 +196,8 @@ class DuckDBCheckRepository:
                         source.record_sha256,
                         finding.provenance.code_commit,
                         finding.provenance.created_at,
-                    ],
+                    ]
+                    + identity_value,
                 )
                 inserted += 1
             # Only a complete successful evaluation may supersede earlier results.

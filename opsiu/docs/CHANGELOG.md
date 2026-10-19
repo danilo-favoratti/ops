@@ -7,6 +7,13 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Fixed
 
+- R12 version 2 groups valid document accounting occurrences and identifies
+  nonpositive document IDs by annual CEAP source year plus original record hash,
+  preserving separate people/suppliers and stable replay without altering source IDs.
+- Migration `0011_source_record_identity` adds an optional identity discriminator
+  while preserving all legacy finding keys, decisions, traces, invoice links and
+  summaries transactionally. Review pages label unidentified documents explicitly.
+
 - R13 version 2 retains repeated accounting occurrences in one document finding,
   including zero and negative adjustments, exact net totals, and every source
   record hash. Supplier matching criteria and mandatory human review are unchanged.

@@ -139,7 +139,8 @@ flowchart TB
 
 - `Despesa`: typed view of one JSON record. Amounts are `Decimal`; `cnpj_cpf`
   is digits only with a `PayerKind` enum; `competencia` is `(ano, mes)`.
-- `Finding`: `finding_key` (rule_id, rule_version, id_documento), `severity`,
+- `Finding`: `finding_key` (rule_id, rule_version, id_documento; plus optional
+  source-record discriminator for nonpositive document IDs, ADR 0013), `severity`,
   `amount`, `evidence` (JSON), `status`
   (`active` / `superseded`), `provenance`.
 - `Provenance`: `run_id`, `step_id`, `code_commit`, `created_at`, and a

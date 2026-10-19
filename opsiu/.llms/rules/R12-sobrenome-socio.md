@@ -1,6 +1,6 @@
 ---
 id: R12
-version: "1"
+version: "2"
 severidade: revisar
 fundamento: "bens ou serviços adquiridos de empresa ou entidade da qual o deputado ou parente até o terceiro grau ou servidor da Câmara seja proprietário ou detentor de qualquer participação;"
 ---
@@ -133,3 +133,21 @@ o vínculo na data da despesa. Não inventar relações familiares, CPFs ou data
 
 A severidade `revisar` expressa a necessidade de verificação. O agente anota o
 achado determinístico; a aprovação para o relatório final cabe à revisão humana.
+
+## Identidade e ocorrências contábeis (versão 2)
+
+Com identificador de documento positivo, reunir as ocorrências em um achado
+por documento. Somar somente os valores líquidos das linhas que dispararam a
+regra, inclusive ajustes negativos e zero, mantendo as evidências em
+`ocorrencias` e os hashes de todas as linhas em `registros_origem`.
+
+Quando `id_documento` é zero ou negativo, não reunir registros não relacionados.
+A identidade inclui o ano do arquivo CEAP e o SHA-256 do registro original;
+`identidade_registro` documenta ambos e a ausência de identificador. Registros
+idênticos no mesmo arquivo anual compartilham identidade e preservam suas
+ocorrências; registros distintos são achados separados, com origem própria.
+O identificador original permanece inalterado. O ano da fonte, não sua posição,
+caminho local ou identificador de importação, torna a identidade reproduzível.
+
+Esses indícios continuam exigindo revisão humana; não comprovam parentesco,
+participação societária vedada nem prejuízo recuperável.

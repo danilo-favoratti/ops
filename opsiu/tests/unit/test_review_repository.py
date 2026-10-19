@@ -136,7 +136,8 @@ def finding(
         ),
     )
     database.execute(
-        "INSERT INTO finding_records VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO finding_records VALUES "
+        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '')",
         [
             result.finding_key,
             rule,

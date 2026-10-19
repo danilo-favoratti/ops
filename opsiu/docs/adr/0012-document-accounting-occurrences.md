@@ -56,6 +56,6 @@ stable without relying on newly generated source IDs.
 R13 version 2 uses the same occurrence grouping for repeated accounting rows.
 Its amount sums the net amounts of matching rows, preserving reversals and zero
 adjustments. Nonmatching rows remain in source context but do not enter the sum.
-Supplier matching and mandatory human review remain unchanged. R12 is not enabled
-for grouping: its real inputs include unrelated records sharing document ID zero,
-which require a separate identity decision before publication.
+Supplier matching and mandatory human review remain unchanged. R12 version 2 applies grouping only within the identity scope defined by
+[ADR 0013](0013-unidentified-document-records.md), separating unrelated records
+that share document ID zero.

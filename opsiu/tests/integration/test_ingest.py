@@ -95,7 +95,17 @@ def test_nullable_glosa_migration_preserves_existing_audit_history_atomically(
     from opsiu.interfaces.cli import app
 
     monkeypatch.setenv("AGENTRIG_RUN_LIVE", "0")
-    migrations = migration_runner.load_migrations()
+    load_migrations = migration_runner.load_migrations
+    migrations = tuple(
+        item for item in load_migrations() if item.migration_id <= "0010_nullable_glosa"
+    )
+    monkeypatch.setattr(
+        migration_runner,
+        "load_migrations",
+        lambda directory=None: (
+            migrations if directory is None else load_migrations(directory)
+        ),
+    )
     assert migrations[-1].migration_id == "0010_nullable_glosa"
     with monkeypatch.context() as legacy:
         legacy.setattr(

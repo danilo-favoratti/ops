@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -9,8 +10,22 @@ from decimal import Decimal
 from typing import Literal
 
 
-def finding_key(rule_id: str, rule_version: str, id_documento: int) -> str:
-    identity = json.dumps([rule_id, rule_version, id_documento], separators=(",", ":"))
+def source_record_identity(source_year: int, record_sha256: str) -> str:
+    if type(source_year) is not int or not re.fullmatch(r"[0-9a-f]{64}", record_sha256):
+        raise ValueError("record identity requires a source year and SHA-256")
+    value = json.dumps(["ceap", source_year, record_sha256], separators=(",", ":"))
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def finding_key(
+    rule_id: str, rule_version: str, id_documento: int, record_identity: str = ""
+) -> str:
+    parts: list[str | int] = [rule_id, rule_version, id_documento]
+    if record_identity:
+        if id_documento > 0 or not re.fullmatch(r"[0-9a-f]{64}", record_identity):
+            raise ValueError("record identity is only valid for unidentified documents")
+        parts.append(record_identity)
+    identity = json.dumps(parts, separators=(",", ":"))
     return hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
 
@@ -66,6 +81,10 @@ class Finding:
     superseded_at: datetime | None = None
     superseded_by_run_id: str | None = None
 
+    record_identity: str = ""
+
     @property
     def finding_key(self) -> str:
-        return finding_key(self.rule_id, self.rule_version, self.id_documento)
+        return finding_key(
+            self.rule_id, self.rule_version, self.id_documento, self.record_identity
+        )

@@ -368,3 +368,120 @@ def test_late_failure_rolls_back_schema_data_and_history_then_retry_succeeds(
     assert apply_migrations(connection, directory=directory) == (MIGRATION_ID,)
     assert {table: rows(connection, table) for table in AUDIT_TABLES} == before
     assert len(rows(connection, "schema_migrations")) == len(history) + 1
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_record_identity_upgrade_preserves_all_references_and_rolls_back(
+    legacy_database: tuple[DuckDBPyConnection, Path],
+    fail: bool,
+) -> None:
+    connection, directory = legacy_database
+    for migration in load_migrations():
+        if MIGRATION_ID <= migration.migration_id < "0011_source_record_identity":
+            (directory / f"{migration.migration_id}.sql").write_text(migration.sql)
+    apply_migrations(connection, directory=directory)
+    insert(
+        connection,
+        "decisions",
+        {
+            "decision_id": identity(40),
+            "finding_key": ACTIVE,
+            "decision": "aprovado",
+            "reviewer": "Revisora",
+            "comment": "Preservar",
+            "decided_at": CREATED,
+            "run_id": identity(1),
+            "step_id": identity(3),
+        },
+    )
+    insert(
+        connection,
+        "resumos_deputado",
+        {
+            "summary_id": identity(41),
+            "numero_deputado_id": 7,
+            "nome_parlamentar": "Ana",
+            "agent_trace_id": identity(10),
+            "model": "scripted",
+            "prompt_name": "resumir",
+            "prompt_version": "1",
+            "prompt_sha256": "1" * 64,
+            "input_sha256": "2" * 64,
+            "input_json": "{}",
+            "output_json": "{}",
+            "created_at": CREATED,
+            "run_id": identity(1),
+            "step_id": identity(3),
+        },
+    )
+    insert(
+        connection,
+        "resumo_fontes",
+        {
+            "summary_id": identity(41),
+            "finding_key": ACTIVE,
+            "parecer_id": identity(20),
+            "parecer_trace_id": identity(10),
+            "source_file_id": identity(4),
+            "source_sha256": "d" * 64,
+            "record_sha256": "e" * 64,
+        },
+    )
+    tables = (
+        *AUDIT_TABLES,
+        "decisions",
+        "resumos_deputado",
+        "resumo_fontes",
+        "finding_records",
+        "finding_supersessions",
+        "findings_current",
+    )
+    before = {table: rows(connection, table) for table in tables}
+    columns = {
+        table: [row[0] for row in connection.execute(f"DESCRIBE {table}").fetchall()]
+        for table in tables
+    }
+    migration = next(
+        item
+        for item in load_migrations()
+        if item.migration_id == "0011_source_record_identity"
+    )
+    (directory / f"{migration.migration_id}.sql").write_text(
+        migration.sql + ("\nSELECT * FROM intentional_missing_table;" if fail else "")
+    )
+    if fail:
+        with pytest.raises(duckdb.Error):
+            apply_migrations(connection, directory=directory)
+        assert all(rows(connection, table) == before[table] for table in tables)
+    else:
+        assert apply_migrations(connection, directory=directory) == (
+            migration.migration_id,
+        )
+        for table in tables:
+            assert (
+                tuple(
+                    connection.execute(
+                        f"SELECT {', '.join(columns[table])} FROM {table} ORDER BY ALL"
+                    ).fetchall()
+                )
+                == before[table]
+            )
+        assert connection.execute(
+            "SELECT DISTINCT record_identity FROM findings"
+        ).fetchall() == [("",)]
+        assert apply_migrations(connection, directory=directory) == ()
+    with pytest.raises(duckdb.ConstraintException):
+        insert(
+            connection,
+            "decisions",
+            {
+                "decision_id": identity(42),
+                "finding_key": "z" * 64,
+                "decision": "revisar",
+                "reviewer": "Revisora",
+                "comment": "",
+                "decided_at": CREATED,
+                "run_id": identity(1),
+                "step_id": identity(3),
+            },
+        )

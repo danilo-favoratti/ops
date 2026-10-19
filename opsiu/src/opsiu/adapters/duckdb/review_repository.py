@@ -103,6 +103,7 @@ def _record(row: Mapping[str, object]) -> FindingExportRecord:
         if row["superseded_by_run_id"] is not None
         else None
     )
+    finding["record_identity"] = row.get("record_identity", "")
     finding["evidence"] = _object(row["evidence_json"])
     finding["provenance"] = {
         "run_id": str(row["run_id"]),

@@ -20,12 +20,9 @@ class DuckDBFindingExportReader:
         cursor = self.connection.cursor()
         try:
             cursor.execute("""
-                SELECT f.finding_key, f.rule_id, f.rule_version, f.id_documento,
-                       f.severity, f.amount, f.evidence_json, f.run_id, f.step_id,
-                       f.source_file_id, s.path AS source_file,
-                       s.sha256 AS source_sha256,
-                       s.size AS source_size_bytes, f.record_sha256, f.code_commit,
-                       f.created_at, d.* EXCLUDE (id_documento, source_file_id,
+                SELECT f.*, s.path AS source_file, s.sha256 AS source_sha256,
+                       s.size AS source_size_bytes,
+                       d.* EXCLUDE (id_documento, source_file_id,
                                                 record_sha256,
                                                 run_id, step_id)
                 FROM findings f JOIN source_files s USING (source_file_id)
@@ -57,6 +54,7 @@ class DuckDBFindingExportReader:
                             "amount",
                         )
                     }
+                    finding["record_identity"] = row.get("record_identity", "")
                     finding["evidence"] = json.loads(row["evidence_json"])
                     finding["provenance"] = {
                         "run_id": str(row["run_id"]),

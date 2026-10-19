@@ -78,6 +78,7 @@ class DuckDBFinalReportReader:
                             "status",
                         )
                     }
+                    finding["record_identity"] = row.get("record_identity", "")
                     finding["evidence"] = json.loads(row["evidence_json"])
                     finding["provenance"] = {
                         "run_id": str(row["run_id"]),

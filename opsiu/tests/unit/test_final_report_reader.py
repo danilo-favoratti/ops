@@ -314,11 +314,11 @@ def test_missing_original_expense_fails_instead_of_substituting_current_source(
     database: DuckDBPyConnection,
 ) -> None:
     key = finding(database)
-    decide(database, key, 100)
     database.execute(
         "UPDATE finding_records SET record_sha256 = ? WHERE finding_key = ?",
         ["f" * 64, key],
     )
+    decide(database, key, 100)
     with pytest.raises(DomainError):
         tuple(DuckDBFinalReportReader(database).approved_findings())
 

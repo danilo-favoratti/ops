@@ -162,7 +162,13 @@ class CheckRepository(Protocol):
 
     def source_origin(self, id_documento: int) -> SourceOrigin: ...
 
-    def source_origins(self, id_documento: int) -> tuple[SourceOrigin, ...]: ...
+    def source_origins(
+        self,
+        id_documento: int,
+        *,
+        source_year: int | None = None,
+        record_sha256: str | None = None,
+    ) -> tuple[SourceOrigin, ...]: ...
 
     def current_sources(self) -> tuple[ExpenseSourceMetadata, ...]: ...
 

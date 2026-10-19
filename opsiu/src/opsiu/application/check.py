@@ -6,7 +6,12 @@ from decimal import Decimal
 from opsiu.application.ports import CheckRepository
 from opsiu.application.runs import Run
 from opsiu.domain.errors import DomainError
-from opsiu.domain.findings import Finding, Provenance, evidence_json
+from opsiu.domain.findings import (
+    Finding,
+    Provenance,
+    evidence_json,
+    source_record_identity,
+)
 from opsiu.domain.rules.base import Rule, RuleResult
 
 
@@ -49,15 +54,34 @@ def check(
             findings: dict[str, Finding] = {}
             candidates = repository.candidates(rule.sql)
             evaluated = 0
-            grouped: dict[int, list[RuleResult]] = {}
+            grouped: dict[tuple[int, int | None, str | None], list[RuleResult]] = {}
             try:
                 for row in candidates:
                     evaluated += 1
                     result = rule.evaluate(row)
                     if result is None:
                         continue
-                    grouped.setdefault(result.id_documento, []).append(result)
-                for document, results in grouped.items():
+                    year: int | None = None
+                    record_hash: str | None = None
+                    if (
+                        descriptor.identify_missing_documents
+                        and result.id_documento <= 0
+                    ):
+                        raw_year, raw_hash = (
+                            row.get("source_year"),
+                            row.get("record_sha256"),
+                        )
+                        if type(raw_year) is not int or not isinstance(raw_hash, str):
+                            raise DomainError(
+                                "unidentified document requires source year "
+                                "and record hash"
+                            )
+                        source_record_identity(raw_year, raw_hash)
+                        year, record_hash = raw_year, raw_hash
+                    grouped.setdefault(
+                        (result.id_documento, year, record_hash), []
+                    ).append(result)
+                for (document, year, record_hash), results in grouped.items():
                     results.sort(
                         key=lambda item: evidence_json(
                             {"valor": item.amount, "evidencia": dict(item.evidence)}
@@ -67,8 +91,15 @@ def check(
                     evidence = deepcopy(dict(result.evidence))
                     amount = result.amount
                     severity = result.severity or descriptor.severity
-                    if descriptor.combine_document_rows:
-                        origins = repository.source_origins(document)
+                    record_identity = (
+                        source_record_identity(year, record_hash)
+                        if year is not None and record_hash is not None
+                        else ""
+                    )
+                    if descriptor.combine_document_rows or record_identity:
+                        origins = repository.source_origins(
+                            document, source_year=year, record_sha256=record_hash
+                        )
                         if not origins:
                             raise DomainError("finding has no current source records")
                         source = origins[0]
@@ -90,6 +121,13 @@ def check(
                                     for origin in origins
                                 ],
                             }
+                            if record_identity:
+                                evidence["registros_origem"] = [
+                                    {
+                                        "ano_fonte": year,
+                                        "registro_sha256": record_hash,
+                                    }
+                                ]
                             amount = sum(
                                 (item.amount for item in results), Decimal("0.00")
                             )
@@ -101,6 +139,12 @@ def check(
                                 "a rule emitted duplicate finding identities"
                             )
                         source = repository.source_origin(document)
+                    if record_identity:
+                        evidence["identidade_registro"] = {
+                            "ano_fonte": year,
+                            "registro_sha256": record_hash,
+                            "documento_sem_identificador": True,
+                        }
                     finding = Finding(
                         descriptor.id,
                         descriptor.version,
@@ -115,6 +159,7 @@ def check(
                             run.record.metadata.code_commit,
                             run.clock.now(),
                         ),
+                        record_identity=record_identity,
                     )
                     evidence_json(finding.evidence)  # Validate even during dry runs.
                     if finding.finding_key in findings:

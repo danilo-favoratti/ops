@@ -12,7 +12,7 @@ from opsiu.domain.text import normalize_name, surname_tokens
 class R12SobrenomeSocio:
     descriptor = RuleDescriptor(
         id="R12",
-        version="1",
+        version="2",
         severity="revisar",
         title="Sobrenome compartilhado com sócio pessoa física",
         fundamento=(
@@ -21,13 +21,17 @@ class R12SobrenomeSocio:
             "ou detentor de qualquer participação;"
         ),
         needs=("despesas_current", "cnpj_socios"),
+        combine_document_rows=True,
+        identify_missing_documents=True,
     )
     sql = """
         SELECT d.id_documento, d.valor_liquido, d.nome_parlamentar,
+            d.record_sha256, f.source_year,
             d.cnpj_cpf_digits AS cnpj, substr(d.cnpj_cpf_digits, 1, 8) AS cnpj_root,
             CAST(i.snapshot_id AS VARCHAR) AS snapshot_id, i.source_sha256,
             r.cnpj_root AS covered_root, partners.socios
         FROM despesas_current d
+        JOIN source_files f USING (source_file_id)
         LEFT JOIN cnpj_imports_current i ON TRUE
         LEFT JOIN cnpj_import_roots_current r
             ON r.cnpj_root = substr(d.cnpj_cpf_digits, 1, 8)

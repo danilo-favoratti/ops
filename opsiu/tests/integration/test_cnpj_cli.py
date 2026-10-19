@@ -244,3 +244,105 @@ def test_r13_repeated_accounting_rows_preserve_adjustments_and_replay(
     invoke("ingest", "--force")
     invoke("check", "--regras", "R13")
     assert findings(workspace) == saved
+
+
+def test_r12_zero_documents_are_separate_records_with_stable_history(
+    workspace: Path,
+) -> None:
+    from opsiu.adapters.duckdb.findings_export import DuckDBFindingExportReader
+    from opsiu.adapters.duckdb.review_repository import DuckDBReviewRepository
+    from opsiu.domain.findings import source_record_identity
+
+    source = workspace / "input/Ano-2099.json"
+    data = json.loads(source.read_text())
+    original = data["dados"][2]
+    zero_a = dict(original, idDocumento=0, valorLiquido="12.34")
+    zero_b = dict(
+        original,
+        idDocumento=0,
+        nomeParlamentar="Bruna Quirino",
+        numeroDeputadoID=202,
+        valorLiquido="56.78",
+    )
+    data["dados"].extend(
+        [
+            zero_a,
+            zero_b,
+            dict(original, valorLiquido="-5.00"),
+            dict(original, nomeParlamentar="Ana Silva", valorLiquido="999.00"),
+        ]
+    )
+    source.write_text(json.dumps(data), encoding="utf-8")
+    invoke("ingest")
+    invoke("fetch", "cnpj", "--from", str(workspace / "dump"))
+    invoke("check", "--regras", "R12")
+    with connect_database(workspace / "db.duckdb", read_only=True) as db:
+        rows = db.execute(
+            "SELECT finding_key, record_identity, record_sha256, amount FROM findings "
+            "WHERE id_documento=0 ORDER BY amount"
+        ).fetchall()
+        assert len(rows) == 2 and rows[0][0] != rows[1][0]
+        assert [row[3] for row in rows] == [Decimal("12.34"), Decimal("56.78")]
+        for key, discriminator, record_hash, _ in rows:
+            assert discriminator == source_record_identity(2099, record_hash)
+            detail = DuckDBReviewRepository(db).get_finding(key)
+            assert detail is not None
+            assert detail.record.finding.finding_key == key
+            assert detail.expense.record_sha256 == record_hash
+        exported = list(DuckDBFindingExportReader(db).active_findings())
+        assert len(exported) == 3
+        assert db.execute(
+            "SELECT rule_version,amount FROM findings WHERE id_documento=209910003"
+        ).fetchone() == ("2", Decimal("20.00"))
+        names = {
+            record.nome_parlamentar
+            for record in exported
+            if record.finding.id_documento == 0
+        }
+        assert names == {"Ana Quirino", "Bruna Quirino"}
+    saved = findings(workspace)
+    invoke("check", "--regras", "R12")
+    assert findings(workspace) == saved
+    invoke("ingest", "--force")
+    invoke("check", "--regras", "R12")
+    assert findings(workspace) == saved
+    invoke("explain", "--regras", "R12", "--amostra", "10")
+    with connect_database(workspace / "db.duckdb", read_only=True) as db:
+        assert db.execute(
+            "SELECT count(DISTINCT finding_key) FROM pareceres"
+        ).fetchone() == (3,)
+
+
+def test_r12_record_keys_survive_relocation_and_reordering_but_track_changes(
+    workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = workspace / "input/Ano-2099.json"
+    zero_a = dict(expense(1, "22222222000100", 1), idDocumento=0)
+    zero_b = dict(zero_a, nomeParlamentar="Bruna Quirino", numeroDeputadoID=202)
+    source.write_text(json.dumps({"dados": [zero_a, zero_a, zero_b]}))
+    invoke("ingest")
+    invoke("fetch", "cnpj", "--from", str(workspace / "dump"))
+    invoke("check", "--regras", "R12")
+    saved = findings(workspace)
+    assert len(saved) == 2
+    (workspace / "input").rename(workspace / "relocated")
+    monkeypatch.setenv("OPSIU_PATHS__DATA_DIR", "relocated")
+    invoke("ingest", "--force")
+    invoke("check", "--regras", "R12")
+    assert findings(workspace) == saved
+    relocated = workspace / "relocated/Ano-2099.json"
+    relocated.write_text(json.dumps({"dados": [zero_b, zero_a, zero_a]}))
+    invoke("ingest")
+    invoke("check", "--regras", "R12")
+    assert findings(workspace) == saved
+    relocated.write_text(json.dumps({"dados": [dict(zero_b, valorLiquido="30.00")]}))
+    invoke("ingest")
+    invoke("check", "--regras", "R12")
+    with connect_database(workspace / "db.duckdb", read_only=True) as db:
+        assert db.execute(
+            "SELECT status,count(*) FROM findings GROUP BY status ORDER BY status"
+        ).fetchall() == [("active", 1), ("superseded", 2)]
+        assert db.execute(
+            "SELECT amount FROM findings WHERE status='active'"
+        ).fetchone() == (Decimal("30.00"),)

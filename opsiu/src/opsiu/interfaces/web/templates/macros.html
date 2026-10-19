@@ -45,3 +45,7 @@
 <ul class="annotation-evidence">{% for item in output.get(key, []) %}<li>{{ item }}</li>{% else %}<li>Nenhuma registrada.</li>{% endfor %}</ul>
 {% endfor %}
 {%- endmacro %}
+
+{% macro document_label(value) -%}
+{% if value > 0 %}Documento {{ value }}{% else %}Documento sem identificador{% endif %}
+{%- endmacro %}

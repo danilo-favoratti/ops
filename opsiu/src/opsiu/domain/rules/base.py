@@ -18,6 +18,7 @@ class RuleDescriptor:
     fundamento: str
     needs: tuple[str, ...] = ()
     combine_document_rows: bool = False
+    identify_missing_documents: bool = False
 
     def __post_init__(self) -> None:
         if any(

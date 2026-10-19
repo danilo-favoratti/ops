@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% from "macros.html" import money, timestamp, severity, opinion, invoice_review %}
+{% from "macros.html" import document_label, money, timestamp, severity, opinion, invoice_review %}
 {% set record = detail.record %}
 {% set finding = record.finding %}
-{% block title %}{{ finding.rule_id }} · Documento {{ finding.id_documento }}{% endblock %}
+{% block title %}{{ finding.rule_id }} · {{ document_label(finding.id_documento) }}{% endblock %}
 {% block content %}
 {% set latest = namespace(opinion=none) %}
 {% for annotation in detail.annotations|reverse %}
@@ -22,7 +22,7 @@
     <p class="notice notice-warning">Ainda não há explicação registrada, e o fundamento desta versão da regra não está disponível.</p>
   {% endif %}
 </section>
-<nav class="breadcrumb" aria-label="Localização"><a href="/findings">← Achados pendentes</a><span>Documento {{ finding.id_documento }}</span></nav>
+<nav class="breadcrumb" aria-label="Localização"><a href="/findings">← Achados pendentes</a><span>{{ document_label(finding.id_documento) }}</span></nav>
 <div class="page-heading detail-heading">
   <div>
     <p class="eyebrow">{{ rule_title }} · {{ finding.rule_id }} · Versão {{ finding.rule_version }}</p>
@@ -31,7 +31,7 @@
     {{ severity(finding.severity) }}
     {% if finding.status == 'superseded' %}<span class="badge badge-neutral">Achado substituído</span>{% endif %}
   </div>
-  <div class="amount-summary"><span>Valor apontado</span><strong>{{ money(finding.amount) }}</strong><span>Documento {{ finding.id_documento }}</span></div>
+  <div class="amount-summary"><span>Valor apontado</span><strong>{{ money(finding.amount) }}</strong><span>{{ document_label(finding.id_documento) }}</span></div>
 </div>
 <div class="review-layout">
   <div class="evidence-column">
