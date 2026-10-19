@@ -1,0 +1,18 @@
+  {% if total %}
+  <nav class="pagination" aria-label="Páginas de achados">
+    <form action="/findings" method="get">
+      {% for name in ('rule', 'deputy', 'uf', 'min_amount') %}
+      <input type="hidden" name="{{ name }}" value="{{ filters[name] }}">
+      {% endfor %}
+      <input type="hidden" name="limit" value="{{ page_limit }}">
+      <button class="button" type="submit" name="page" value="{{ page - 1 }}"{% if page == 1 %} disabled{% endif %}>← Anterior</button>
+      <div class="page-numbers">
+        {% for number in page_numbers %}
+        {% if not loop.first and number > page_numbers[loop.index0 - 1] + 1 %}<span class="muted" aria-hidden="true">…</span>{% endif %}
+        <button class="button{% if number == page %} button-primary{% endif %}" type="submit" name="page" value="{{ number }}" aria-label="Página {{ number }}"{% if number == page %} aria-current="page"{% endif %}>{{ number|integer_br }}</button>
+        {% endfor %}
+      </div>
+      <button class="button" type="submit" name="page" value="{{ page + 1 }}"{% if page == page_count %} disabled{% endif %}>Próxima →</button>
+    </form>
+  </nav>
+  {% endif %}

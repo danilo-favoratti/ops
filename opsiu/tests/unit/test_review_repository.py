@@ -247,6 +247,11 @@ def test_pending_priority_pagination_and_latest_decision_exclusion(
         for item in repository.list_pending(ReviewFilters(min_amount=Decimal("11")))
     ] == expected[2:]
     assert repository.list_pending(ReviewFilters(offset=99)) == ()
+    assert repository.count_pending(ReviewFilters(limit=2, offset=99)) == 4
+    assert repository.count_pending(ReviewFilters(min_amount=Decimal("11"))) == 2
+    assert repository.count_pending(ReviewFilters(rule_id="R01")) == 1
+    assert repository.count_pending(ReviewFilters(deputy_id=999)) == 0
+    assert repository.count_pending(ReviewFilters(uf="BA")) == 0
 
 
 def test_filters_and_detail_use_archived_expense_after_source_replacement(

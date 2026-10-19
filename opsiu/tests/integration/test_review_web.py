@@ -295,3 +295,32 @@ def test_superseded_finding_cannot_be_approved_from_old_form(workspace: Path) ->
         )
         assert response.status_code in (400, 409, 422)
         assert counts(workspace)[1] == 0
+
+
+def test_numbered_pages_counts_and_filter_preservation(workspace: Path) -> None:
+    with TestClient(create_app(Settings()), base_url="http://127.0.0.1") as client:
+        params = {"limit": 1, "rule": "R01", "uf": "df", "min_amount": "0,00"}
+        first = client.get("/findings", params=params)
+        assert first.status_code == 200
+        assert "Mostrando 1–1 de" in first.text
+        assert 'aria-current="page"' in first.text
+        assert 'name="rule" value="R01"' in first.text
+        assert 'name="uf" value="df"' in first.text
+        assert 'name="min_amount" value="0,00"' in first.text
+        assert 'name="limit" value="1"' in first.text
+        assert 'value="0" disabled>← Anterior' in first.text
+        second = client.get("/findings", params={"limit": 1, "page": 2})
+        assert second.status_code == 200
+        assert "Mostrando 2–2 de" in second.text
+        assert 'value="1">← Anterior' in second.text
+        assert first.text.count('aria-label="Páginas de achados"') == 2
+        last = client.get("/findings", params={**params, "page": 999999})
+        assert last.status_code == 200
+        assert "disabled>Próxima →" in last.text
+        assert "Página 999999" not in last.text
+        empty = client.get("/findings", params={"deputy": -999, "page": 10})
+        assert empty.status_code == 200
+        assert "Mostrando 0–0 de 0 achados" in empty.text
+        assert 'aria-label="Páginas de achados"' not in empty.text
+        invalid = client.get("/findings", params={"page": 0})
+        assert invalid.status_code == 400

@@ -102,6 +102,9 @@ class LazyReviewRepository:
     def list_pending(self, filters: ReviewFilters) -> tuple[ReviewItem, ...]:
         return DuckDBReviewRepository(self.scope.database()).list_pending(filters)
 
+    def count_pending(self, filters: ReviewFilters) -> int:
+        return DuckDBReviewRepository(self.scope.database()).count_pending(filters)
+
     def get_finding(self, finding_key: str) -> ReviewDetail | None:
         self.last_detail = DuckDBReviewRepository(self.scope.database()).get_finding(
             finding_key

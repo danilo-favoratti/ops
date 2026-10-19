@@ -2,7 +2,7 @@
 
 import json
 from collections.abc import Callable
-from dataclasses import fields
+from dataclasses import fields, replace
 from decimal import Decimal, InvalidOperation
 from enum import Enum
 from pathlib import Path
@@ -118,6 +118,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configured = settings if settings is not None else Settings()
     templates = Jinja2Templates(directory=_DIRECTORY / "templates")
     templates.env.filters["brl"] = money
+    templates.env.filters["integer_br"] = lambda value: format(value, ",").replace(
+        ",", "."
+    )
     security = FormSecurity()
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -221,7 +224,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         scope = scope_for(request)
         raw = {
             name: request.query_params.get(name, "")
-            for name in ("rule", "deputy", "uf", "min_amount", "offset")
+            for name in (
+                "rule",
+                "deputy",
+                "uf",
+                "min_amount",
+                "offset",
+                "page",
+                "limit",
+            )
         }
 
         def load() -> dict[str, object]:
@@ -231,18 +242,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 uf=raw["uf"] or None,
                 min_amount=_minimum(raw["min_amount"]),
                 offset=int(raw["offset"] or "0"),
+                limit=int(raw["limit"] or "100"),
             )
+            requested_page = int(
+                raw["page"] or str(filters.offset // filters.limit + 1)
+            )
+            if requested_page < 1:
+                raise ValueError("O número da página deve ser positivo.")
+            total = service(scope).count_pending(filters)
+            page_count = max(1, (total + filters.limit - 1) // filters.limit)
+            page = min(requested_page, page_count)
+            filters = replace(filters, offset=(page - 1) * filters.limit)
             items = service(scope).list_pending(filters)
             return {
                 "items": items,
                 "filters": raw,
                 "rules": tuple(rule.descriptor for rule in registry.RULES),
-                "next_offset": filters.offset + filters.limit
-                if len(items) == filters.limit
-                else None,
-                "previous_offset": max(0, filters.offset - filters.limit)
-                if filters.offset
-                else None,
+                "total": total,
+                "page": page,
+                "page_count": page_count,
+                "page_limit": filters.limit,
+                "range_start": filters.offset + 1 if items else 0,
+                "range_end": filters.offset + len(items),
+                "page_numbers": sorted(
+                    {1, page_count}
+                    | set(range(max(1, page - 2), min(page_count, page + 2) + 1))
+                ),
             }
 
         try:

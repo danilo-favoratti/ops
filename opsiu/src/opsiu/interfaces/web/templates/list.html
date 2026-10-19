@@ -8,7 +8,7 @@
     <h1>Achados pendentes</h1>
     <p class="lead">Examine as evidências e registre sua decisão sobre cada achado.</p>
   </div>
-  <span class="page-count">{{ items|length }} nesta página</span>
+  <span class="page-count">{{ total|integer_br }} achados pendentes</span>
 </div>
 {% if error %}<div class="notice notice-error" role="alert">{{ error }}</div>{% endif %}
 <section class="panel filters" aria-labelledby="filters-heading">
@@ -35,6 +35,13 @@
       <label for="filter-amount">Valor mínimo (R$)</label>
       <input id="filter-amount" name="min_amount" type="text" inputmode="decimal" value="{{ filters.min_amount }}" placeholder="0,00">
     </div>
+    <div class="field">
+      <label for="filter-limit">Achados por página</label>
+      <select id="filter-limit" name="limit">
+        {% for size in [25, 50, 100] %}<option value="{{ size }}"{% if page_limit == size %} selected{% endif %}>{{ size }}</option>{% endfor %}
+        {% if page_limit not in [25, 50, 100] %}<option value="{{ page_limit }}" selected>{{ page_limit }}</option>{% endif %}
+      </select>
+    </div>
     <div class="filter-actions">
       <button class="button button-primary" type="submit">Filtrar</button>
       <a class="text-link" href="/findings">Limpar</a>
@@ -46,6 +53,8 @@
     <h2 id="results-heading" class="section-heading">Fila de revisão</h2>
     <p class="muted small">Ordenada por severidade e valor</p>
   </div>
+  <p class="result-count" role="status">Mostrando {{ range_start|integer_br }}–{{ range_end|integer_br }} de {{ total|integer_br }} achados · Página {{ page|integer_br }} de {{ page_count|integer_br }}</p>
+  {% include "pagination.html" %}
   {% if items %}
   <div class="table-scroll" role="region" aria-label="Achados pendentes" tabindex="0">
     <table class="findings-table">
@@ -86,16 +95,6 @@
     <a class="text-link" href="/findings">Consultar todas as pendências</a>
   </div>
   {% endif %}
-  {% if previous_offset is not none or next_offset is not none %}
-  <nav class="pagination" aria-label="Páginas de achados">
-    <form action="/findings" method="get">
-      {% for name in ('rule', 'deputy', 'uf', 'min_amount') %}
-      <input type="hidden" name="{{ name }}" value="{{ filters[name] }}">
-      {% endfor %}
-      <button class="button" type="submit" name="offset" value="{{ previous_offset if previous_offset is not none else 0 }}"{% if previous_offset is none %} disabled{% endif %}>← Anterior</button>
-      <button class="button" type="submit" name="offset" value="{{ next_offset if next_offset is not none else 0 }}"{% if next_offset is none %} disabled{% endif %}>Próxima →</button>
-    </form>
-  </nav>
-  {% endif %}
+  {% include "pagination.html" %}
 </section>
 {% endblock %}

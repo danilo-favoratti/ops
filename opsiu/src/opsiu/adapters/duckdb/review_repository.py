@@ -40,6 +40,31 @@ _ORIGINAL_FINDINGS = """
 """
 
 
+_PENDING_WHERE = """
+                WHERE f.status = 'active'
+                  AND (f.decision IS NULL OR f.decision = 'revisar')
+                  AND (? IS NULL OR f.rule_id = ?)
+                  AND (? IS NULL OR f.amount >= ?)
+                  AND (d.source_record_number IS NULL OR (
+                      (? IS NULL OR d.numero_deputado_id = ?)
+                      AND (? IS NULL OR d.sigla_uf = ?)
+                  ))
+"""
+
+
+def _pending_parameters(filters: ReviewFilters) -> list[object]:
+    return [
+        value
+        for value in (
+            filters.rule_id,
+            filters.min_amount,
+            filters.deputy_id,
+            filters.uf,
+        )
+        for _ in range(2)
+    ]
+
+
 def _object(value: object) -> dict[str, JsonValue]:
     if not isinstance(value, str):
         raise DomainError("review evidence requires stored JSON")
@@ -157,34 +182,28 @@ class DuckDBReviewRepository:
         filters = replace(filters)
         rows = self._rows(
             _ORIGINAL_FINDINGS
+            + _PENDING_WHERE
             + """
-                WHERE f.status = 'active'
-                  AND (f.decision IS NULL OR f.decision = 'revisar')
-                  AND (? IS NULL OR f.rule_id = ?)
-                  AND (? IS NULL OR f.amount >= ?)
-                  AND (d.source_record_number IS NULL OR (
-                      (? IS NULL OR d.numero_deputado_id = ?)
-                      AND (? IS NULL OR d.sigla_uf = ?)
-                  ))
                 ORDER BY CASE f.severity WHEN 'alta' THEN 0 WHEN 'media' THEN 1
                                         ELSE 2 END,
                          f.amount DESC, f.finding_key
                 LIMIT ? OFFSET ?
             """,
-            [
-                filters.rule_id,
-                filters.rule_id,
-                filters.min_amount,
-                filters.min_amount,
-                filters.deputy_id,
-                filters.deputy_id,
-                filters.uf,
-                filters.uf,
-                filters.limit,
-                filters.offset,
-            ],
+            _pending_parameters(filters) + [filters.limit, filters.offset],
         )
         return tuple(ReviewItem(_record(row), _current(row)) for row in rows)
+
+    def count_pending(self, filters: ReviewFilters) -> int:
+        filters = replace(filters)
+        row = self.connection.execute(
+            "SELECT count(*) FROM ("
+            + _ORIGINAL_FINDINGS
+            + _PENDING_WHERE
+            + ") pending",
+            _pending_parameters(filters),
+        ).fetchone()
+        assert row is not None
+        return int(row[0])
 
     def get_finding(self, key: str) -> ReviewDetail | None:
         rows = self._rows(_ORIGINAL_FINDINGS + " WHERE f.finding_key = ?", [key])

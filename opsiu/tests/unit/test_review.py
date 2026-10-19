@@ -121,6 +121,9 @@ class Repository:
             return ()
         return (ReviewItem(self.current.record, self.current.current_decision),)
 
+    def count_pending(self, filters: ReviewFilters) -> int:
+        return len(self.list_pending(filters))
+
     def get_finding(self, finding_key: str) -> ReviewDetail | None:
         self.reads.append(finding_key)
         if (
