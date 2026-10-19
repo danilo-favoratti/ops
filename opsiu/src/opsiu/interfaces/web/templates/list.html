@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "macros.html" import money, severity, decision_badge %}
+{% block title %}Achados pendentes{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Revisão humana</p>
+    <h1>Achados pendentes</h1>
+    <p class="lead">Examine as evidências e registre sua decisão sobre cada achado.</p>
+  </div>
+  <span class="page-count">{{ items|length }} nesta página</span>
+</div>
+{% if error %}<div class="notice notice-error" role="alert">{{ error }}</div>{% endif %}
+<section class="panel filters" aria-labelledby="filters-heading">
+  <h2 id="filters-heading" class="section-heading">Filtrar achados</h2>
+  <form action="/findings" method="get" class="filter-form">
+    <div class="field field-rule">
+      <label for="filter-rule">Regra</label>
+      <select id="filter-rule" name="rule">
+        <option value="">Todas as regras</option>
+        {% for rule in rules %}
+        <option value="{{ rule.id }}"{% if filters.rule == rule.id %} selected{% endif %}>{{ rule.id }} · {{ rule.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="filter-deputy">ID do deputado</label>
+      <input id="filter-deputy" name="deputy" type="number" step="1" value="{{ filters.deputy }}" placeholder="Todos">
+    </div>
+    <div class="field field-uf">
+      <label for="filter-uf">UF</label>
+      <input id="filter-uf" name="uf" type="text" maxlength="2" pattern="[A-Za-z]{2}" value="{{ filters.uf }}" placeholder="Todas" autocapitalize="characters">
+    </div>
+    <div class="field">
+      <label for="filter-amount">Valor mínimo (R$)</label>
+      <input id="filter-amount" name="min_amount" type="text" inputmode="decimal" value="{{ filters.min_amount }}" placeholder="0,00">
+    </div>
+    <div class="filter-actions">
+      <button class="button button-primary" type="submit">Filtrar</button>
+      <a class="text-link" href="/findings">Limpar</a>
+    </div>
+  </form>
+</section>
+<section class="panel results" aria-labelledby="results-heading">
+  <div class="panel-heading">
+    <h2 id="results-heading" class="section-heading">Fila de revisão</h2>
+    <p class="muted small">Ordenada por severidade e valor</p>
+  </div>
+  {% if items %}
+  <div class="table-scroll" role="region" aria-label="Achados pendentes" tabindex="0">
+    <table class="findings-table">
+      <caption class="sr-only">Achados ativos sem decisão ou marcados para revisar.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Deputado e documento</th>
+          <th scope="col">Regra</th>
+          <th scope="col">Severidade</th>
+          <th scope="col" class="numeric">Valor apontado</th>
+          <th scope="col">Decisão atual</th>
+          <th scope="col"><span class="sr-only">Ação</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        {% set record = item.record %}
+        <tr>
+          <td>
+            <strong class="cell-title">{{ record.nome_parlamentar }}</strong>
+            <span class="cell-meta">{{ record.sigla_uf }}{% if record.sigla_partido %} · {{ record.sigla_partido }}{% endif %} · ID {{ record.numero_deputado_id }}</span>
+            <span class="cell-meta">Documento {{ record.finding.id_documento }} · {{ '%02d'|format(record.mes) }}/{{ record.ano }}</span>
+          </td>
+          <td><strong>{{ record.finding.rule_id }}</strong><span class="cell-meta">Versão {{ record.finding.rule_version }}</span></td>
+          <td>{{ severity(record.finding.severity) }}</td>
+          <td class="numeric amount">{{ money(record.finding.amount) }}</td>
+          <td>{{ decision_badge(item.current_decision.decision if item.current_decision else none) }}</td>
+          <td><a class="button button-small" href="/findings/{{ record.finding.finding_key }}" aria-label="Revisar {{ record.finding.rule_id }}, documento {{ record.finding.id_documento }} de {{ record.nome_parlamentar }}">Revisar <span aria-hidden="true">→</span></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <h3>Nenhum achado pendente</h3>
+    <p>Não há achados pendentes para os filtros selecionados.</p>
+    <a class="text-link" href="/findings">Consultar todas as pendências</a>
+  </div>
+  {% endif %}
+  {% if previous_offset is not none or next_offset is not none %}
+  <nav class="pagination" aria-label="Páginas de achados">
+    <form action="/findings" method="get">
+      {% for name in ('rule', 'deputy', 'uf', 'min_amount') %}
+      <input type="hidden" name="{{ name }}" value="{{ filters[name] }}">
+      {% endfor %}
+      <button class="button" type="submit" name="offset" value="{{ previous_offset if previous_offset is not none else 0 }}"{% if previous_offset is none %} disabled{% endif %}>← Anterior</button>
+      <button class="button" type="submit" name="offset" value="{{ next_offset if next_offset is not none else 0 }}"{% if next_offset is none %} disabled{% endif %}>Próxima →</button>
+    </form>
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

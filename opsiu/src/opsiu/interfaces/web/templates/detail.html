@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% from "macros.html" import money, timestamp, severity %}
+{% set record = detail.record %}
+{% set finding = record.finding %}
+{% block title %}{{ finding.rule_id }} · Documento {{ finding.id_documento }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb" aria-label="Localização"><a href="/findings">← Achados pendentes</a><span>Documento {{ finding.id_documento }}</span></nav>
+<div class="page-heading detail-heading">
+  <div>
+    <p class="eyebrow">{{ finding.rule_id }} · Versão {{ finding.rule_version }}</p>
+    <h1>{{ record.nome_parlamentar }}</h1>
+    <p class="lead">{{ record.sigla_uf }}{% if record.sigla_partido %} · {{ record.sigla_partido }}{% endif %} · ID {{ record.numero_deputado_id }} · Competência {{ '%02d'|format(record.mes) }}/{{ record.ano }}</p>
+    {{ severity(finding.severity) }}
+    {% if finding.status == 'superseded' %}<span class="badge badge-neutral">Achado substituído</span>{% endif %}
+  </div>
+  <div class="amount-summary"><span>Valor apontado</span><strong>{{ money(finding.amount) }}</strong><span>Documento {{ finding.id_documento }}</span></div>
+</div>
+<div class="review-layout">
+  <div class="evidence-column">
+    <section class="panel" aria-labelledby="evidence-heading">
+      <h2 id="evidence-heading">Evidências do achado</h2>
+      <p class="muted">Evidências produzidas pela regra {{ finding.rule_id }}, versão {{ finding.rule_version }}.</p>
+      <pre class="evidence-text" tabindex="0">{{ evidence_text }}</pre>
+    </section>
+    <section class="panel" aria-labelledby="rule-heading">
+      <h2 id="rule-heading">Regra aplicada</h2>
+      {% if rule_unavailable or not rule_text %}
+      <p class="notice notice-warning">O texto correspondente à versão desta regra não está disponível.</p>
+      {% else %}
+      <pre class="rule-text" tabindex="0">{{ rule_text }}</pre>
+      {% endif %}
+    </section>
+    <section class="panel" aria-labelledby="invoice-heading">
+      <h2 id="invoice-heading">Documento fiscal</h2>
+      <div class="document-links">
+        {% if original_url %}<a class="button" href="{{ original_url }}" target="_blank" rel="noopener noreferrer">Abrir documento na origem <span class="sr-only">(nova aba)</span><span aria-hidden="true">↗</span></a>{% endif %}
+        {% if detail.pdf %}<a class="button" href="/findings/{{ finding.finding_key }}/pdf" target="_blank" rel="noopener noreferrer">Abrir PDF arquivado <span class="sr-only">(nova aba)</span><span aria-hidden="true">↗</span></a>{% endif %}
+      </div>
+      {% if not original_url %}<p class="muted">Link de origem indisponível.</p>{% endif %}
+      {% if detail.pdf %}
+      <h3>Texto extraído</h3>
+      {% if detail.pdf.content.needs_ocr %}<p class="notice notice-warning">Este documento precisa de reconhecimento de texto (OCR).</p>{% endif %}
+      {% if detail.pdf.content.text.strip() %}<pre class="invoice-text" tabindex="0">{{ detail.pdf.content.text }}</pre>{% else %}<p class="muted">Nenhum texto legível foi extraído.</p>{% endif %}
+      <details class="audit-details">
+        <summary>Origem da extração</summary>
+        <dl class="metadata">
+          <div><dt>Extração</dt><dd><code>{{ detail.pdf.extraction_id }}</code></dd></div>
+          <div><dt>Cópia arquivada</dt><dd><code>{{ detail.pdf.content.snapshot_id }}</code></dd></div>
+          <div><dt>SHA-256 do PDF</dt><dd><code>{{ detail.pdf.content.snapshot_sha256 }}</code></dd></div>
+          <div><dt>SHA-256 do texto</dt><dd><code>{{ detail.pdf.content.text_sha256 }}</code></dd></div>
+          <div><dt>Extrator</dt><dd>{{ detail.pdf.content.extractor }} · {{ detail.pdf.content.extractor_version }}</dd></div>
+          <div><dt>Páginas</dt><dd>{{ detail.pdf.content.page_count }}</dd></div>
+          <div><dt>Data da extração</dt><dd>{{ timestamp(detail.pdf.created_at) }}</dd></div>
+          <div><dt>Execução</dt><dd><code>{{ detail.pdf.run_id }}</code></dd></div>
+          <div><dt>Etapa</dt><dd><code>{{ detail.pdf.step_id }}</code></dd></div>
+        </dl>
+      </details>
+      {% else %}<p class="muted">Não há PDF arquivado nem texto extraído para este documento.</p>{% endif %}
+    </section>
+    <section class="panel" aria-labelledby="annotations-heading">
+      <h2 id="annotations-heading">Pareceres dos agentes</h2>
+      <p class="muted">Os pareceres auxiliam a análise das evidências. A decisão é registrada pelo revisor.</p>
+      {% for annotation in detail.annotations %}
+      <article class="annotation" aria-labelledby="annotation-{{ loop.index }}">
+        <div class="annotation-heading">
+          <h3 id="annotation-{{ loop.index }}">{{ 'Revisão de nota fiscal' if annotation.kind == 'nota_fiscal' else 'Explicação do achado' }}</h3>
+          {% if annotation.model == 'scripted' %}<span class="badge badge-neutral">Simulado</span>{% endif %}
+        </div>
+        <p class="small muted">Modelo: {{ annotation.model }} · Instrução versão {{ annotation.prompt_version }} · {{ timestamp(annotation.created_at) }}</p>
+        <pre class="evidence-text" tabindex="0">{{ annotation.output|tojson(indent=2) }}</pre>
+        <details class="audit-details">
+          <summary>Identificadores do parecer</summary>
+          <dl class="metadata">
+            <div><dt>Parecer</dt><dd><code>{{ annotation.parecer_id }}</code></dd></div>
+            <div><dt>Agente</dt><dd><code>{{ annotation.agent_id }}</code></dd></div>
+            <div><dt>Rastro do agente</dt><dd><code>{{ annotation.agent_trace_id }}</code></dd></div>
+            <div><dt>Execução</dt><dd><code>{{ annotation.run_id }}</code></dd></div>
+            <div><dt>Etapa</dt><dd><code>{{ annotation.step_id }}</code></dd></div>
+          </dl>
+        </details>
+      </article>
+      {% else %}<p class="muted">Nenhum parecer registrado para este achado.</p>{% endfor %}
+    </section>
+    <section class="panel" aria-labelledby="expense-heading">
+      <h2 id="expense-heading">Registro original da despesa</h2>
+      <dl class="metadata expense-fields">
+        {% for label, value in expense_fields %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}
+      </dl>
+    </section>
+    <section class="panel" aria-labelledby="provenance-heading">
+      <h2 id="provenance-heading">Origem do achado</h2>
+      <dl class="metadata">
+        <div><dt>Chave do achado</dt><dd><code>{{ finding.finding_key }}</code></dd></div>
+        <div><dt>Data de criação</dt><dd>{{ timestamp(finding.provenance.created_at) }}</dd></div>
+        <div><dt>Execução original</dt><dd><code>{{ finding.provenance.run_id }}</code></dd></div>
+        <div><dt>Etapa original</dt><dd><code>{{ finding.provenance.step_id }}</code></dd></div>
+        <div><dt>Versão do código</dt><dd><code>{{ finding.provenance.code_commit }}</code></dd></div>
+        <div><dt>Arquivo de origem</dt><dd>{{ finding.provenance.source.source_file }}</dd></div>
+        <div><dt>ID do arquivo</dt><dd><code>{{ finding.provenance.source.source_file_id }}</code></dd></div>
+        <div><dt>SHA-256 do arquivo</dt><dd><code>{{ finding.provenance.source.source_sha256 }}</code></dd></div>
+        <div><dt>SHA-256 do registro</dt><dd><code>{{ finding.provenance.source.record_sha256 }}</code></dd></div>
+        <div><dt>Posição no arquivo</dt><dd>{{ record.source_record_number }}</dd></div>
+        <div><dt>Tamanho do arquivo</dt><dd>{{ record.source_size_bytes }} bytes</dd></div>
+        {% if finding.superseded_at %}<div><dt>Substituído em</dt><dd>{{ timestamp(finding.superseded_at) }}</dd></div>{% endif %}
+        {% if finding.superseded_by_run_id %}<div><dt>Execução que substituiu</dt><dd><code>{{ finding.superseded_by_run_id }}</code></dd></div>{% endif %}
+      </dl>
+    </section>
+  </div>
+  <aside class="decision-column" aria-label="Decisão e histórico">
+    {% include "decision_panel.html" %}
+  </aside>
+</div>
+{% endblock %}

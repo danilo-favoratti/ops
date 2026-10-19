@@ -20,7 +20,8 @@ their use cases become available; the final documentation pass completes them.
   extraction and verified cache reuse.
 - [`explain`](explain.md): append bounded, traced annotations to sampled
   findings using scripted responses by default or explicitly enabled Codex.
-- `review`: launch the local approval application; planned as `review.md`.
+- [`review [--port 8765]`](review.md): inspect original evidence and record
+  append-only human decisions through the local Portuguese interface.
 - [`report findings`](report.md): export active, unreviewed findings as CSV and
   a Portuguese summary. The approved-only `report final` command is planned.
 

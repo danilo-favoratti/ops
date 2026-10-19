@@ -1,0 +1,19 @@
+{% macro money(value) -%}
+R$ {{ value|string|replace('.', ',') }}
+{%- endmacro %}
+
+{% macro timestamp(value) -%}
+<time datetime="{{ value.isoformat() }}">{{ value.strftime('%d/%m/%Y %H:%M:%S %Z') }}</time>
+{%- endmacro %}
+
+{% macro severity(value) -%}
+{% set labels = {'alta': 'Alta', 'media': 'Média', 'revisar': 'Revisar'} %}
+{% set classes = {'alta': 'badge-high', 'media': 'badge-medium', 'revisar': 'badge-neutral'} %}
+<span class="badge {{ classes.get(value, 'badge-neutral') }}" aria-label="Severidade: {{ labels.get(value, value) }}">{{ labels.get(value, value) }}</span>
+{%- endmacro %}
+
+{% macro decision_badge(value) -%}
+{% set labels = {'aprovado': 'Aprovado', 'rejeitado': 'Rejeitado', 'revisar': 'Revisar'} %}
+{% set classes = {'aprovado': 'badge-approved', 'rejeitado': 'badge-rejected', 'revisar': 'badge-medium'} %}
+<span class="badge {{ classes.get(value, 'badge-neutral') }}">{{ labels.get(value, 'Sem decisão') }}</span>
+{%- endmacro %}

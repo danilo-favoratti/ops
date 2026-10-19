@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="htmx-config" content='{"allowEval":false,"allowScriptTags":false,"selfRequestsOnly":true,"includeIndicatorStyles":false,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true,"error":true}]}'>
+    <title>{% block title %}Revisão de achados{% endblock %} · OPSIU</title>
+    <link rel="stylesheet" href="/static/review.css">
+    <script src="/static/htmx.min.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <a class="brand" href="/findings" aria-label="OPSIU — início da revisão">
+          <span class="brand-name">OPSIU</span>
+          <span class="brand-description">Auditoria da cota parlamentar</span>
+        </a>
+        <nav aria-label="Navegação principal">
+          <a href="/findings">Achados pendentes</a>
+        </nav>
+        {% if reviewer %}<span class="reviewer">Revisor: <strong>{{ reviewer }}</strong></span>{% endif %}
+      </div>
+    </header>
+    <main id="conteudo" class="page" tabindex="-1">
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">
+      <span>OPSIU · Revisão local da CEAP</span>
+      {% if run_id %}<span class="run-reference">Execução desta consulta: <code>{{ run_id }}</code></span>{% endif %}
+    </footer>
+  </body>
+</html>

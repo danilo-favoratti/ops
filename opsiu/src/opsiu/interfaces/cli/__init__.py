@@ -8,6 +8,7 @@ from opsiu.interfaces.cli.explain import explain
 from opsiu.interfaces.cli.fetch import app as fetch_app
 from opsiu.interfaces.cli.ingest import ingest
 from opsiu.interfaces.cli.report import app as report_app
+from opsiu.interfaces.cli.review import review
 from opsiu.interfaces.cli.runs import app as runs_app
 
 app = typer.Typer(no_args_is_help=True)
@@ -18,6 +19,7 @@ app.add_typer(fetch_app, name="fetch")
 app.command()(ingest)
 app.command()(check)
 app.command()(explain)
+app.command()(review)
 
 
 @app.callback()

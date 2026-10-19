@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Não foi possível concluir{% endblock %}
+{% block content %}
+<section class="panel error-page" aria-labelledby="error-heading">
+  <p class="eyebrow">Revisão de achados</p>
+  <h1 id="error-heading">Não foi possível concluir</h1>
+  <p class="notice notice-error" role="alert">{{ error or 'A solicitação não pôde ser concluída. Volte à lista de achados e tente novamente.' }}</p>
+  <a class="button button-primary" href="/findings">Voltar aos achados pendentes</a>
+</section>
+{% endblock %}

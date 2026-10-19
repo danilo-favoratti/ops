@@ -1,0 +1,64 @@
+{% from "macros.html" import timestamp, decision_badge %}
+<section id="decision-panel" class="panel decision-panel" aria-labelledby="decision-heading">
+  <p class="eyebrow">Decisão do revisor</p>
+  <h2 id="decision-heading">Registrar revisão</h2>
+  <div aria-live="polite" aria-atomic="true">
+    {% if success %}<p class="notice notice-success" role="status">{{ success }}</p>{% endif %}
+    {% if error %}<p class="notice notice-error" role="alert">{{ error }}</p>{% endif %}
+  </div>
+  <div class="current-decision">
+    <span class="muted small">Decisão atual</span>
+    {{ decision_badge(detail.current_decision.decision if detail.current_decision else none) }}
+    {% if detail.current_decision %}
+    <p class="small">{{ detail.current_decision.reviewer }} · {{ timestamp(detail.current_decision.decided_at) }}</p>
+    {% endif %}
+  </div>
+  {% if detail.record.finding.status == 'superseded' %}
+  <div class="notice notice-warning" role="status">
+    <strong>Achado substituído.</strong> O histórico continua disponível, mas este achado não pode receber novas decisões.
+  </div>
+  {% else %}
+  <form action="/findings/{{ detail.record.finding.finding_key }}/decisions" method="post"
+        hx-post="/findings/{{ detail.record.finding.finding_key }}/decisions"
+        hx-target="#decision-panel" hx-swap="outerHTML"
+        hx-disabled-elt="find button" hx-sync="this:drop">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="field">
+      <label for="decision-comment">Comentário</label>
+      <textarea id="decision-comment" name="comment" rows="5" aria-describedby="comment-help">{{ comment|default('') }}</textarea>
+      <p id="comment-help" class="field-help">Registre o motivo da decisão. O comentário é opcional e permanece no histórico.</p>
+    </div>
+    <div class="decision-actions">
+      <button class="button button-primary" type="submit" name="decision" value="aprovado">Aprovar</button>
+      <button class="button button-reject" type="submit" name="decision" value="rejeitado">Rejeitar</button>
+      <button class="button" type="submit" name="decision" value="revisar">Revisar depois</button>
+    </div>
+    <p class="htmx-indicator small" role="status">Registrando decisão…</p>
+  </form>
+  {% endif %}
+  {% if run_id %}<p class="run-reference small">Execução: <code>{{ run_id }}</code></p>{% endif %}
+  <div class="history-section">
+    <h3>Histórico de decisões</h3>
+    {% if detail.decisions %}
+    <ol class="decision-history">
+      {% for entry in detail.decisions %}
+      <li>
+        <div class="history-heading">{{ decision_badge(entry.decision) }}<strong>{{ entry.reviewer }}</strong></div>
+        <p class="muted small">{{ timestamp(entry.decided_at) }}</p>
+        {% if entry.comment %}<p class="preserve-lines">{{ entry.comment }}</p>{% else %}<p class="muted small">Sem comentário.</p>{% endif %}
+        <details class="audit-details">
+          <summary>Identificadores desta decisão</summary>
+          <dl class="metadata compact">
+            <div><dt>Decisão</dt><dd><code>{{ entry.decision_id }}</code></dd></div>
+            <div><dt>Execução</dt><dd><code>{{ entry.run_id }}</code></dd></div>
+            <div><dt>Etapa</dt><dd><code>{{ entry.step_id }}</code></dd></div>
+          </dl>
+        </details>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="muted">Nenhuma decisão registrada.</p>
+    {% endif %}
+  </div>
+</section>
