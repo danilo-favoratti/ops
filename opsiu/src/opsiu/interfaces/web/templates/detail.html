@@ -57,17 +57,17 @@
       {% if not original_url %}<p class="muted">Link de origem indisponível.</p>{% endif %}
       {% if detail.pdf %}
       <h3>Texto extraído</h3>
-      {% if detail.pdf.content.needs_ocr %}<p class="notice notice-warning">Este documento precisa de reconhecimento de texto (OCR).</p>{% endif %}
+      {% if detail.pdf.content.extractor == 'raw-pdf' %}<p class="notice notice-warning">O arquivo foi preservado para comparação de bytes, mas não foi possível extrair seu texto. A criptografia ou a estrutura do PDF pode impedir a leitura.</p>{% elif detail.pdf.content.needs_ocr %}<p class="notice notice-warning">Este documento precisa de reconhecimento de texto (OCR).</p>{% endif %}
       {% if detail.pdf.content.text.strip() %}<pre class="invoice-text" tabindex="0">{{ detail.pdf.content.text }}</pre>{% else %}<p class="muted">Nenhum texto legível foi extraído.</p>{% endif %}
       <details class="audit-details">
-        <summary>Origem da extração</summary>
+        <summary>Origem do documento arquivado</summary>
         <dl class="metadata">
           <div><dt>Extração</dt><dd><code>{{ detail.pdf.extraction_id }}</code></dd></div>
           <div><dt>Cópia arquivada</dt><dd><code>{{ detail.pdf.content.snapshot_id }}</code></dd></div>
           <div><dt>SHA-256 do PDF</dt><dd><code>{{ detail.pdf.content.snapshot_sha256 }}</code></dd></div>
           <div><dt>SHA-256 do texto</dt><dd><code>{{ detail.pdf.content.text_sha256 }}</code></dd></div>
           <div><dt>Extrator</dt><dd>{{ detail.pdf.content.extractor }} · {{ detail.pdf.content.extractor_version }}</dd></div>
-          <div><dt>Páginas</dt><dd>{{ detail.pdf.content.page_count }}</dd></div>
+          <div><dt>Páginas</dt><dd>{% if detail.pdf.content.extractor == 'raw-pdf' %}Não apurado{% else %}{{ detail.pdf.content.page_count }}{% endif %}</dd></div>
           <div><dt>Data da extração</dt><dd>{{ timestamp(detail.pdf.created_at) }}</dd></div>
           <div><dt>Execução</dt><dd><code>{{ detail.pdf.run_id }}</code></dd></div>
           <div><dt>Etapa</dt><dd><code>{{ detail.pdf.step_id }}</code></dd></div>

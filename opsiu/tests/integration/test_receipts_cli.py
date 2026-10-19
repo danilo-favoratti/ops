@@ -10,11 +10,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 from pypdf import PdfWriter
 from typer.testing import CliRunner
 
 from opsiu.adapters.duckdb.connection import connect_database
 from opsiu.interfaces.cli import app
+from opsiu.interfaces.web.app import create_app
+from opsiu.settings import Settings
 
 pytestmark = pytest.mark.integration
 BASE_EXPENSE = Path(__file__).parents[1] / "fixtures/mini_dataset/Ano-2099.json"
@@ -25,6 +28,7 @@ class ReceiptServer:
     url: str = ""
     requests: list[str] = field(default_factory=list)
     invalid_paths: set[str] = field(default_factory=lambda: {"/invalid"})
+    payloads: dict[str, bytes] = field(default_factory=dict)
 
 
 @pytest.fixture
@@ -40,6 +44,7 @@ def receipt_server() -> Iterator[ReceiptServer]:
         def do_GET(self) -> None:
             state.requests.append(self.path)
             payload = b"not a PDF" if self.path in state.invalid_paths else receipt
+            payload = state.payloads.get(self.path, payload)
             self.send_response(200)
             self.send_header("Content-Type", "application/pdf")
             self.send_header("Content-Length", str(len(payload)))
@@ -294,3 +299,104 @@ def test_uncached_only_advances_groups_and_keeps_cached_members_within_limit(
     assert manifest["counters"]["receipts_cached"] == 2
     assert manifest["counters"]["receipts_extracted"] == 1
     assert receipt_server.requests == ["/1", "/2", "/3", "/4", "/5"]
+
+
+@pytest.mark.parametrize("kind", ["encrypted", "malformed"])
+def test_receipt_bytes_survive_unavailable_text_and_strict_fetch_still_fails(
+    workspace: Path, receipt_server: ReceiptServer, kind: str
+) -> None:
+    if kind == "encrypted":
+        writer = PdfWriter()
+        writer.add_blank_page(width=300, height=300)
+        writer.encrypt("private-test-password")
+        output = io.BytesIO()
+        writer.write(output)
+        payload = output.getvalue()
+    else:
+        payload = b"%PDF-1.7\nmalformed receipt structure\n%%EOF\n"
+    receipt_server.payloads.update({"/1": payload, "/2": payload})
+    ingest(
+        workspace,
+        [
+            expense(1, receipt_server.url + "/1", numero="s/n"),
+            expense(2, receipt_server.url + "/2", numero="s/n"),
+        ],
+    )
+    invoke("check", "--regras", "R08")
+    invoke("fetch", "pdf", "--sample", expected=1)
+    with connect_database(workspace / "db.duckdb", read_only=True) as db:
+        assert db.execute("SELECT count(*) FROM nf_texto").fetchone() == (0,)
+    run = invoke("receipts", "fetch", "--limit", "2")
+    manifest = json.loads((workspace / "runs" / run / "manifest.json").read_text())
+    assert manifest["counters"]["receipts_captured_without_text"] == 2
+    assert manifest["counters"]["receipts_extracted"] == 0
+    assert manifest["counters"]["receipts_failed"] == 0
+    with connect_database(workspace / "db.duckdb", read_only=True) as db:
+        original = db.execute("SELECT * FROM nf_texto ORDER BY id_documento").fetchall()
+        assert (
+            db.execute(
+                "SELECT extractor,extractor_version,texto,needs_ocr,page_count "
+                "FROM nf_texto"
+            ).fetchall()
+            == [("raw-pdf", "1", "", True, 0)] * 2
+        )
+        assert db.execute(
+            "SELECT count(*) FROM events WHERE run_id=? "
+            "AND kind='receipt.text_unavailable'",
+            [run],
+        ).fetchone() == (2,)
+        assert db.execute(
+            "SELECT count(*) FROM events WHERE run_id=? AND kind='receipt.captured'",
+            [run],
+        ).fetchone() == (2,)
+    assert (workspace / "external/pdf/1.pdf").read_bytes() == payload
+    assert (workspace / "external/pdf/2.pdf").read_bytes() == payload
+    with connect_database(workspace / "db.duckdb", read_only=True) as db:
+        key = db.execute(
+            "SELECT finding_key FROM findings WHERE rule_id='R08' AND id_documento=1"
+        ).fetchone()
+        assert key is not None
+    with TestClient(create_app(Settings()), base_url="http://127.0.0.1") as client:
+        page = client.get(f"/findings/{key[0]}")
+        assert page.status_code == 200
+        assert "O arquivo foi preservado para comparação de bytes" in page.text
+        assert "Não apurado" in page.text
+        assert (
+            "Este documento precisa de reconhecimento de texto (OCR)" not in page.text
+        )
+    invoke("check", "--regras", "R09")
+    with connect_database(workspace / "db.duckdb", read_only=True) as db:
+        assert db.execute(
+            "SELECT count(*) FROM findings WHERE rule_id='R09'"
+        ).fetchone() == (2,)
+    requests = list(receipt_server.requests)
+    replay = invoke("receipts", "fetch", "--limit", "2")
+    manifest = json.loads((workspace / "runs" / replay / "manifest.json").read_text())
+    assert manifest["counters"]["receipts_cached"] == 2
+    assert manifest["counters"]["receipts_captured_without_text"] == 0
+    assert receipt_server.requests == requests
+    invoke("check", "--regras", "R08")
+    invoke("fetch", "pdf", "--sample", expected=1)
+    assert receipt_server.requests == requests
+    with connect_database(workspace / "db.duckdb", read_only=True) as db:
+        assert (
+            db.execute("SELECT * FROM nf_texto ORDER BY id_documento").fetchall()
+            == original
+        )
+
+
+def test_receipt_capture_rejects_html_even_when_text_extraction_is_optional(
+    workspace: Path, receipt_server: ReceiptServer
+) -> None:
+    receipt_server.payloads["/1"] = b"<html>Upstream error page</html>"
+    ingest(
+        workspace,
+        [expense(1, receipt_server.url + "/1"), expense(2, receipt_server.url + "/2")],
+    )
+    run = invoke("receipts", "fetch", "--limit", "2", expected=1)
+    manifest = json.loads((workspace / "runs" / run / "manifest.json").read_text())
+    assert manifest["counters"]["receipts_captured_without_text"] == 0
+    assert manifest["counters"]["receipts_failed"] == 1
+    with connect_database(workspace / "db.duckdb", read_only=True) as db:
+        assert db.execute("SELECT id_documento FROM nf_texto").fetchall() == [(2,)]
+    assert not (workspace / "external/pdf/1.pdf").exists()

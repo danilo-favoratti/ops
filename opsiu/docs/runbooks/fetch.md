@@ -374,6 +374,17 @@ a larger limit expands the deterministic sample. Use
 while keeping partially cached groups complete. Download failures remain explicit
 and do not imply that a receipt is absent or different.
 
+Receipt comparison does not require successful text extraction. After validating
+its PDF header, `receipts fetch` preserves an encrypted or unreadable PDF as an
+immutable `raw-pdf` capture (version 1) with an empty text field and a recorded
+`receipt.text_unavailable` event. Its bytes, hash, URL, snapshot and source links
+remain available for comparison. Such captures count as `captured without text`,
+not successful extractions; cached captures are verified and reused without
+repeated parsing. The existing `fetch pdf --sample` command still requires text
+extraction to succeed. Non-PDF responses, integrity errors and I/O failures remain
+failures in both commands. The missing-text flag does not imply OCR can recover
+an encrypted or malformed document.
+
 Every R09 check verifies the currently cached receipts linked to current expense
 URLs, groups by verified size and SHA-256, and confirms equality with a chunked
 raw-byte comparison. The run reports receipt coverage and exact groups. A cache

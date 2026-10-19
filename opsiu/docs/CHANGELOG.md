@@ -7,6 +7,10 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Fixed
 
+- Receipt comparison retains raw PDF captures when encryption or malformed PDF
+  structure prevents text extraction. These captures are explicitly marked as
+  lacking extracted text; binary comparison does not require readable text.
+
 - R09 version 3 requires usable invoice numbers and the same known issue date
   for metadata matches. It additionally detects verified byte-identical cached
   receipts across positive document IDs, preserving raw-file provenance and

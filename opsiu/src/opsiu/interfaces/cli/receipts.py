@@ -55,6 +55,7 @@ def fetch(
                 HttpSnapshotStore(
                     context.settings.paths.external_dir, connection, context.run
                 ),
+                allow_unextracted_receipts=True,
             ),
             DuckDBPdfRepository(connection),
             limit=limit,
@@ -63,6 +64,8 @@ def fetch(
         typer.echo(
             f"Grupos: {context.run.counters['receipt_groups_selected']}; "
             f"PDFs extraídos: {context.run.counters['receipts_extracted']}; "
+            "capturados sem texto: "
+            f"{context.run.counters['receipts_captured_without_text']}; "
             f"em cache: {context.run.counters['receipts_cached']}; "
             f"falhas: {context.run.counters['receipts_failed']}."
         )

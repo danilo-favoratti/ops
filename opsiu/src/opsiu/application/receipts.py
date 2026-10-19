@@ -54,6 +54,7 @@ def fetch_receipts(
         receipts_selected=0,
         receipts_extracted=0,
         receipts_cached=0,
+        receipts_captured_without_text=0,
         receipts_failed=0,
     )
     with run.step("selecionar_grupos_comprovantes") as selection_step:
@@ -112,7 +113,13 @@ def fetch_receipts(
                 previous is not None
                 and previous.extraction_id == extraction.extraction_id
             )
-            run.counters["receipts_cached" if cached else "receipts_extracted"] += 1
+            if cached:
+                counter, event = "receipts_cached", "receipt.cached"
+            elif content.extractor == "raw-pdf":
+                counter, event = "receipts_captured_without_text", "receipt.captured"
+            else:
+                counter, event = "receipts_extracted", "receipt.extracted"
+            run.counters[counter] += 1
             details: dict[str, JsonValue] = {
                 "id_documento": item.id_documento,
                 "url": item.url,
@@ -122,6 +129,8 @@ def fetch_receipts(
                 "sha256": content.sha256,
                 "size_bytes": content.size_bytes,
                 "needs_ocr": content.needs_ocr,
+                "extractor": content.extractor,
+                "extractor_version": content.extractor_version,
                 "sources": [
                     {
                         "source_file_id": origin.source_file_id,
@@ -132,6 +141,6 @@ def fetch_receipts(
                     for origin in item.sources
                 ],
             }
-            run.emit("receipt.cached" if cached else "receipt.extracted", details)
+            run.emit(event, details)
         if step.record.status == "failed":
             run.counters["receipts_failed"] += 1
