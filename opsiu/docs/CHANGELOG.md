@@ -7,6 +7,10 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Fixed
 
+- R13 version 2 retains repeated accounting occurrences in one document finding,
+  including zero and negative adjustments, exact net totals, and every source
+  record hash. Supplier matching criteria and mandatory human review are unchanged.
+
 - R01, R09, and R11 version 2 retain repeated-document occurrences and all
   source record hashes in one finding. R11 ambiguous candidate matches produce
   review indicators instead of aborting the rule. Synthetic eval labels are

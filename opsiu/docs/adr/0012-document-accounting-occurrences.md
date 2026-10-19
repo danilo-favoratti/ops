@@ -50,3 +50,12 @@ combined amounts and source hashes, unchanged reruns, forced identical ingestion
 exports, and ambiguous R11 matches. Publication validates that the anchor is an
 actual current source record. Source hashes and occurrence ordering make retries
 stable without relying on newly generated source IDs.
+
+## Extension: supplier activity checks
+
+R13 version 2 uses the same occurrence grouping for repeated accounting rows.
+Its amount sums the net amounts of matching rows, preserving reversals and zero
+adjustments. Nonmatching rows remain in source context but do not enter the sum.
+Supplier matching and mandatory human review remain unchanged. R12 is not enabled
+for grouping: its real inputs include unrelated records sharing document ID zero,
+which require a separate identity decision before publication.

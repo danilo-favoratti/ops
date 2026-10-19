@@ -3,6 +3,7 @@
 import csv
 import json
 import os
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -194,3 +195,52 @@ def test_failed_parse_retains_prior_import_and_successful_empty_dump_supersedes(
         assert db.execute(
             "SELECT status,count(*) FROM findings GROUP BY status"
         ).fetchall() == [("superseded", 3)]
+
+
+def test_r13_repeated_accounting_rows_preserve_adjustments_and_replay(
+    workspace: Path,
+) -> None:
+    source = workspace / "input/Ano-2099.json"
+    data = json.loads(source.read_text())
+    original = data["dados"][0]
+    data["dados"].extend(
+        [
+            dict(original, valorLiquido="10.00"),
+            dict(original, valorLiquido="-5.00"),
+            dict(original, valorLiquido="0.00"),
+            dict(original, numeroSubCota="1", valorLiquido="1000.00"),
+        ]
+    )
+    source.write_text(json.dumps(data), encoding="utf-8")
+    invoke("ingest")
+    invoke("fetch", "cnpj", "--from", str(workspace / "dump"))
+    invoke("check", "--regras", "R13")
+    with connect_database(workspace / "db.duckdb", read_only=True) as db:
+        row = db.execute(
+            "SELECT rule_version,severity,amount,evidence_json FROM findings "
+            "WHERE rule_id='R13' AND id_documento=209910001"
+        ).fetchone()
+        assert row is not None
+        version, severity, amount, raw = row
+        assert (version, severity, amount) == ("2", "revisar", Decimal("30.00"))
+        evidence = json.loads(raw)
+        assert sorted(Decimal(row["valor"]) for row in evidence["ocorrencias"]) == [
+            Decimal("-5.00"),
+            Decimal("0.00"),
+            Decimal("10.00"),
+            Decimal("25.00"),
+        ]
+        assert {row["registro_sha256"] for row in evidence["registros_origem"]} == {
+            row[0]
+            for row in db.execute(
+                "SELECT record_sha256 FROM despesas_current "
+                "WHERE id_documento=209910001"
+            ).fetchall()
+        }
+        assert len(evidence["registros_origem"]) == 5
+    saved = findings(workspace)
+    invoke("check", "--regras", "R13")
+    assert findings(workspace) == saved
+    invoke("ingest", "--force")
+    invoke("check", "--regras", "R13")
+    assert findings(workspace) == saved

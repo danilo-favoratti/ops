@@ -1,6 +1,6 @@
 ---
 id: R13
-version: "1"
+version: "2"
 severidade: revisar
 fundamento: "aquisição de gêneros alimentícios; locação de veículo automotor, prestada por pessoa jurídica especializada, que contemple o serviço de motorista;"
 ---
@@ -116,3 +116,13 @@ ou condições contratuais.
 O agente anota o indício produzido pelo código; não decide seu disparo nem
 converte o cadastro em prova de despesa vedada. A aprovação para o relatório
 final cabe à revisão humana.
+
+## Ocorrências contábeis do mesmo documento (versão 2)
+
+Preservar todas as linhas de origem. Quando um documento possui várias linhas,
+reunir os indícios em um achado, com `ocorrencias` ordenadas e todos os hashes
+em `registros_origem`. O valor é a soma exata dos valores líquidos das
+ocorrências que dispararam a regra, incluindo ajustes negativos e valores zero.
+Linhas sem indício não entram na soma, mas seus hashes permanecem no contexto
+do documento. A origem principal é apenas uma referência, não todo o conteúdo
+do achado. Não interpretar essa soma como prejuízo ou restituição devida.

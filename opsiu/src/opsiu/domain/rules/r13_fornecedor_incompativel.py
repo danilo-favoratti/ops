@@ -18,7 +18,7 @@ from opsiu.domain.text import normalize_name
 class R13FornecedorIncompativel:
     descriptor = RuleDescriptor(
         id="R13",
-        version="1",
+        version="2",
         severity="revisar",
         title="Indício de fornecedor incompatível com a categoria",
         fundamento=(
@@ -27,6 +27,7 @@ class R13FornecedorIncompativel:
             "de motorista;"
         ),
         needs=("despesas_current", "cnpj_empresas"),
+        combine_document_rows=True,
     )
     sql = """
         SELECT d.id_documento, d.valor_liquido, d.numero_sub_cota, d.fornecedor,
