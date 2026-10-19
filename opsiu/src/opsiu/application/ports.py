@@ -1,9 +1,10 @@
 """Typed ports and records shared by run orchestration and ledger adapters."""
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal, Protocol
 
 from opsiu.domain.findings import Finding, SourceOrigin
@@ -167,4 +168,47 @@ class CheckRepository(Protocol):
         finished_at: datetime,
     ) -> FindingChanges:
         """Atomically publish complete results and supersede previous active rows."""
+        ...
+
+
+@dataclass(frozen=True)
+class FindingExportRecord:
+    finding: Finding
+    numero_deputado_id: int
+    nome_parlamentar: str
+    sigla_uf: str
+    sigla_partido: str | None
+    ano: int
+    mes: int
+    fornecedor: str | None
+    cnpj_cpf_digits: str | None
+    numero: str | None
+    data_emissao: date | None
+    valor_documento: Decimal
+    valor_glosa: Decimal
+    valor_liquido: Decimal
+    url_documento: str | None
+    source_record_number: int
+    source_size_bytes: int
+
+
+class FindingExportReader(Protocol):
+    def active_findings(self) -> Iterator[FindingExportRecord]:
+        """Read active findings with their original source expense context."""
+        ...
+
+
+@dataclass(frozen=True)
+class Artifact:
+    path: str
+    media_type: str
+    sha256: str
+    size_bytes: int
+
+
+class ArtifactWriter(Protocol):
+    def write_text(
+        self, name: str, chunks: Iterable[str], *, media_type: str
+    ) -> Artifact:
+        """Create a new UTF-8 artifact exclusively inside the active run step."""
         ...

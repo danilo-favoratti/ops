@@ -14,12 +14,12 @@ their use cases become available; the final documentation pass completes them.
 - `runs list` and `runs show <id> [--events]`: inspect execution history;
   runbook planned as `runs.md`.
 - [`ingest`](ingest.md): stream yearly expense files into the database.
-- `check`: apply deterministic rules; planned as `check.md`.
+- [`check`](check.md): apply deterministic rules with versioned finding history.
 - `fetch tse|cnpj|pdf`: capture and load external evidence; planned as `fetch.md`.
 - `explain`: annotate sampled findings with agents; planned as `explain.md`.
 - `review`: launch the local approval application; planned as `review.md`.
-- `report findings|final`: export findings and approved results;
-  planned as `report.md`.
+- [`report findings`](report.md): export active, unreviewed findings as CSV and
+  a Portuguese summary. The approved-only `report final` command is planned.
 
 For incidents, use the [post-mortem template](../postmortem-template.md). Design
 decisions are recorded in [ADRs](../adr/); version changes are recorded in the
