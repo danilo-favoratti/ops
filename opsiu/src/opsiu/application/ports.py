@@ -1,5 +1,6 @@
 """Typed ports and records shared by run orchestration and ledger adapters."""
 
+import re
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
@@ -7,11 +8,15 @@ from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from types import MappingProxyType
-from typing import Literal, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 
+from opsiu.domain.decisions import Decision
 from opsiu.domain.findings import Finding, SourceOrigin
 from opsiu.domain.models import Despesa
 from opsiu.domain.policies import Adicional, Cap, CotaUF
+
+if TYPE_CHECKING:
+    from opsiu.application.runs import Run
 
 type JsonValue = (
     None | bool | int | float | str | list[JsonValue] | dict[str, JsonValue]
@@ -590,3 +595,84 @@ class SummaryRepository(Protocol):
         run_id: str,
         step_id: str,
     ) -> None: ...
+
+
+@dataclass(frozen=True)
+class ReviewFilters:
+    rule_id: str | None = None
+    deputy_id: int | None = None
+    uf: str | None = None
+    min_amount: Decimal | None = None
+    limit: int = 100
+    offset: int = 0
+
+    def __post_init__(self) -> None:
+        if self.rule_id is not None and (
+            not isinstance(self.rule_id, str)
+            or re.fullmatch(r"R[0-9]{2}", self.rule_id) is None
+        ):
+            raise ValueError("O identificador da regra deve seguir o formato R01.")
+        if self.deputy_id is not None and type(self.deputy_id) is not int:
+            raise ValueError("O identificador do deputado deve ser inteiro.")
+        if self.uf is not None:
+            if (
+                not isinstance(self.uf, str)
+                or re.fullmatch(r"[A-Za-z]{2}", self.uf) is None
+            ):
+                raise ValueError("A UF deve conter duas letras.")
+            object.__setattr__(self, "uf", self.uf.upper())
+        if self.min_amount is not None and (
+            not isinstance(self.min_amount, Decimal)
+            or not self.min_amount.is_finite()
+            or self.min_amount < 0
+        ):
+            raise ValueError("O valor mínimo deve ser decimal, finito e não negativo.")
+        if type(self.limit) is not int or not 1 <= self.limit <= 1_000:
+            raise ValueError("O limite deve ser um inteiro entre 1 e 1000.")
+        if type(self.offset) is not int or self.offset < 0:
+            raise ValueError("O deslocamento deve ser um inteiro não negativo.")
+
+
+@dataclass(frozen=True)
+class ReviewItem:
+    record: FindingExportRecord
+    current_decision: Decision | None
+
+
+@dataclass(frozen=True)
+class ReviewAnnotation:
+    parecer_id: str
+    finding_key: str
+    agent_trace_id: str
+    agent_id: str
+    kind: AnnotationKind
+    model: str
+    prompt_version: str
+    output: dict[str, JsonValue]
+    created_at: datetime
+    run_id: str
+    step_id: str
+
+
+@dataclass(frozen=True)
+class ReviewDetail:
+    record: FindingExportRecord
+    current_decision: Decision | None
+    expense: Despesa
+    decisions: tuple[Decision, ...]
+    annotations: tuple[ReviewAnnotation, ...]
+    pdf: PdfExtraction | None
+
+
+class RunFactory(Protocol):
+    def __call__(
+        self, command: str, arguments: dict[str, JsonValue]
+    ) -> AbstractContextManager["Run"]: ...
+
+
+class ReviewRepository(Protocol):
+    def list_pending(self, filters: ReviewFilters) -> tuple[ReviewItem, ...]: ...
+
+    def get_finding(self, finding_key: str) -> ReviewDetail | None: ...
+
+    def append_decision(self, decision: Decision) -> None: ...

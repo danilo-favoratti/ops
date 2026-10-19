@@ -17,6 +17,11 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Schema migration `0009_decisions`: append-only human decisions with reviewer,
+  comment, decision time, immutable finding identity, and run/step provenance.
+  The `findings_current` view joins the latest decision without discarding
+  earlier decisions. Each decision action has its own run and step; superseded
+  findings retain their history and cannot receive new decisions.
 - Schema migration `0008_resumos_deputado`: immutable per-deputy summaries and
   exact source links to findings, opinions, private traces, and original source
   hashes. Summary identity includes the complete input hash, model, and prompt
