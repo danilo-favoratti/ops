@@ -1,0 +1,8 @@
+.venv/
+runs/
+data/
+*.duckdb
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+dist/

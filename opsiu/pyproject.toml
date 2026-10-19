@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "opsiu"
+version = "0.1.0"
+description = "Traceable audits of Brazilian parliamentary reimbursements."
+requires-python = ">=3.12"
+dependencies = [
+    "duckdb",
+    "pydantic",
+    "pydantic-settings",
+    "typer",
+    "httpx",
+    "pypdf",
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "python-multipart",
+    "agentrig @ git+https://github.com/mtmoreira/agentrig.git@cc585b46f5365cf1997f71704302d477dd5a7685",
+    "openai-codex==0.144.4",
+]
+
+[project.scripts]
+opsiu = "opsiu.interfaces.cli:app"
+
+[dependency-groups]
+dev = ["pytest", "ruff", "mypy", "httpx"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/opsiu"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.format]
+exclude = ["*.md"]
+
+[tool.mypy]
+strict = true
+mypy_path = "src"
+files = ["src", "tests"]
+python_version = "3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "unit: isolated domain and application tests",
+    "contract: interfaces and adapter contract tests",
+    "integration: end-to-end tests with local resources",
+    "eval: opt-in agent evaluations",
+]
