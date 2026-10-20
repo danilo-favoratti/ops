@@ -15,7 +15,12 @@ from opsiu.adapters.duckdb.migration_runner import apply_migrations
 from opsiu.adapters.duckdb.pdf_repository import DuckDBPdfRepository
 from opsiu.adapters.duckdb.repository import DuckDBExpenseRepository
 from opsiu.adapters.duckdb.review_repository import DuckDBReviewRepository
-from opsiu.application.ports import ExpenseSourceMetadata, PdfContent, ReviewFilters
+from opsiu.application.ports import (
+    ExpenseSourceMetadata,
+    PdfContent,
+    ReviewFilters,
+    ReviewSummary,
+)
 from opsiu.domain.decisions import Decision, DecisionValue
 from opsiu.domain.errors import DomainError
 from opsiu.domain.findings import Finding, Provenance, SourceOrigin, evidence_json
@@ -196,6 +201,9 @@ def test_append_keeps_every_decision_and_current_uses_time_then_identity(
     assert detail.pdf is None
     pending = repository.list_pending(ReviewFilters())
     assert len(pending) == 1 and pending[0].current_decision == higher
+    assert repository.summarize_pending(ReviewFilters()) == ReviewSummary(
+        1, Decimal("123.44")
+    )
     assert database.execute(
         "SELECT CAST(decision_id AS VARCHAR), decision, reviewer, comment, decided_at, "
         "CAST(decision_run_id AS VARCHAR), CAST(decision_step_id AS VARCHAR) "
@@ -253,6 +261,18 @@ def test_pending_priority_pagination_and_latest_decision_exclusion(
     assert repository.count_pending(ReviewFilters(rule_id="R01")) == 1
     assert repository.count_pending(ReviewFilters(deputy_id=999)) == 0
     assert repository.count_pending(ReviewFilters(uf="BA")) == 0
+    assert repository.summarize_pending(ReviewFilters(limit=2, offset=99)) == (
+        ReviewSummary(4, Decimal("1420.00"))
+    )
+    assert repository.summarize_pending(
+        ReviewFilters(min_amount=Decimal("11"))
+    ) == ReviewSummary(2, Decimal("1400.00"))
+    assert repository.summarize_pending(ReviewFilters(rule_id="R01")) == (
+        ReviewSummary(1, Decimal("10.00"))
+    )
+    empty = repository.summarize_pending(ReviewFilters(deputy_id=999))
+    assert empty == ReviewSummary(0, Decimal("0"))
+    assert isinstance(empty.total_amount, Decimal)
 
 
 def test_filters_and_detail_use_archived_expense_after_source_replacement(
@@ -262,10 +282,12 @@ def test_filters_and_detail_use_archived_expense_after_source_replacement(
     finding(database, rule="R09", document=102)
     source(database, (expense(deputy=99, uf="BA"),), number=21)
     repository = DuckDBReviewRepository(database)
-    pending = repository.list_pending(
-        ReviewFilters(rule_id="R08", deputy_id=7, uf="sp", min_amount=Decimal("123.44"))
+    filters = ReviewFilters(
+        rule_id="R08", deputy_id=7, uf="sp", min_amount=Decimal("123.44")
     )
+    pending = repository.list_pending(filters)
     assert len(pending) == 1
+    assert repository.summarize_pending(filters) == ReviewSummary(1, Decimal("123.44"))
     assert pending[0].record.finding == original
     assert pending[0].record.source_record_number == 1
     assert pending[0].record.source_size_bytes == 1234
@@ -273,7 +295,11 @@ def test_filters_and_detail_use_archived_expense_after_source_replacement(
     selected = ReviewFilters(deputy_ids=(7, 8, 99), ufs=("sp", "RJ", "BA"))
     assert repository.count_pending(selected) == 2
     assert len(repository.list_pending(selected)) == 2
+    assert repository.summarize_pending(selected) == ReviewSummary(2, Decimal("246.88"))
     assert repository.count_pending(ReviewFilters(deputy_ids=(7, 99), ufs=("BA",))) == 0
+    assert repository.summarize_pending(
+        ReviewFilters(deputy_ids=(7, 99), ufs=("BA",))
+    ) == ReviewSummary(0, Decimal("0"))
     assert {option.id: option.name for option in repository.list_deputies()} == {
         7: "Deputado 7",
         8: "Deputado 8",

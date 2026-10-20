@@ -18,6 +18,7 @@ from opsiu.application.ports import (
     ReviewDetail,
     ReviewFilters,
     ReviewItem,
+    ReviewSummary,
 )
 from opsiu.application.runs import Run
 from opsiu.domain.decisions import Decision
@@ -113,6 +114,9 @@ class LazyReviewRepository:
 
     def count_pending(self, filters: ReviewFilters) -> int:
         return DuckDBReviewRepository(self.scope.database()).count_pending(filters)
+
+    def summarize_pending(self, filters: ReviewFilters) -> ReviewSummary:
+        return DuckDBReviewRepository(self.scope.database()).summarize_pending(filters)
 
     def get_finding(self, finding_key: str) -> ReviewDetail | None:
         self.last_detail = DuckDBReviewRepository(self.scope.database()).get_finding(

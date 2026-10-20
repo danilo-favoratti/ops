@@ -3,6 +3,7 @@
 import json
 from collections.abc import Mapping
 from dataclasses import replace
+from decimal import Decimal
 from typing import cast
 
 from duckdb import DuckDBPyConnection
@@ -17,6 +18,7 @@ from opsiu.application.ports import (
     ReviewDetail,
     ReviewFilters,
     ReviewItem,
+    ReviewSummary,
 )
 from opsiu.domain.decisions import Decision
 from opsiu.domain.errors import DomainError
@@ -209,16 +211,19 @@ class DuckDBReviewRepository:
         return tuple(ReviewItem(_record(row), _current(row)) for row in rows)
 
     def count_pending(self, filters: ReviewFilters) -> int:
+        return self.summarize_pending(filters).count
+
+    def summarize_pending(self, filters: ReviewFilters) -> ReviewSummary:
         filters = replace(filters)
         row = self.connection.execute(
-            "SELECT count(*) FROM ("
+            "SELECT count(*), coalesce(sum(amount), 0) FROM ("
             + _ORIGINAL_FINDINGS
             + _PENDING_WHERE
             + ") pending",
             _pending_parameters(filters),
         ).fetchone()
         assert row is not None
-        return int(row[0])
+        return ReviewSummary(count=int(row[0]), total_amount=Decimal(row[1]))
 
     def get_finding(self, key: str) -> ReviewDetail | None:
         rows = self._rows(_ORIGINAL_FINDINGS + " WHERE f.finding_key = ?", [key])

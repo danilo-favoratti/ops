@@ -657,6 +657,12 @@ class ReviewFilters:
 
 
 @dataclass(frozen=True)
+class ReviewSummary:
+    count: int
+    total_amount: Decimal
+
+
+@dataclass(frozen=True)
 class DeputyOption:
     id: int
     name: str
@@ -701,6 +707,8 @@ class RunFactory(Protocol):
 
 class ReviewRepository(Protocol):
     def list_deputies(self) -> tuple[DeputyOption, ...]: ...
+
+    def summarize_pending(self, filters: ReviewFilters) -> ReviewSummary: ...
 
     def count_pending(self, filters: ReviewFilters) -> int: ...
 

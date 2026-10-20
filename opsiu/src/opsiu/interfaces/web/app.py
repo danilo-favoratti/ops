@@ -254,7 +254,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
             if requested_page < 1:
                 raise ValueError("O número da página deve ser positivo.")
-            total = service(scope).count_pending(filters)
+            summary = service(scope).summarize_pending(filters)
+            total = summary.count
             page_count = max(1, (total + filters.limit - 1) // filters.limit)
             page = min(requested_page, page_count)
             filters = replace(filters, offset=(page - 1) * filters.limit)
@@ -283,6 +284,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "filters": raw,
                 "rules": tuple(rule.descriptor for rule in registry.RULES),
                 "total": total,
+                "total_amount": summary.total_amount,
                 "page": page,
                 "page_count": page_count,
                 "page_limit": filters.limit,

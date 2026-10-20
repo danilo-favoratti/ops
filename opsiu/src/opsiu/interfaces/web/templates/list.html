@@ -9,7 +9,11 @@
     <h1>Achados pendentes</h1>
     <p class="lead">Examine as evidências e registre sua decisão sobre cada achado.</p>
   </div>
-  <span class="page-count">{{ total|integer_br }} achados pendentes</span>
+  <div class="page-summary">
+    <span class="page-count">{{ total|integer_br }} achados pendentes</span>
+    <p class="page-total"><span class="small muted">Valor total apontado</span><strong>{{ money(total_amount) }}</strong></p>
+    <p class="page-total-note">Soma dos achados filtrados; pode haver sobreposição.</p>
+  </div>
 </div>
 {% if error %}<div class="notice notice-error" role="alert">{{ error }}</div>{% endif %}
 <section class="panel filters" aria-labelledby="filters-heading">

@@ -307,6 +307,8 @@ def test_numbered_pages_counts_and_filter_preservation(workspace: Path) -> None:
         first = client.get("/findings", params=params)
         assert first.status_code == 200
         assert "Mostrando 1–1 de" in first.text
+        assert "Valor total apontado" in first.text
+        assert "<strong>R$ 0,01</strong>" in first.text
         assert 'aria-current="page"' in first.text
         assert 'name="rule" value="R01"' in first.text
         assert 'name="uf" value="DF"' in first.text
@@ -325,9 +327,33 @@ def test_numbered_pages_counts_and_filter_preservation(workspace: Path) -> None:
         empty = client.get("/findings", params={"deputy": -999, "page": 10})
         assert empty.status_code == 200
         assert "Mostrando 0–0 de 0 achados" in empty.text
+        assert "<strong>R$ 0,00</strong>" in empty.text
         assert 'aria-label="Páginas de achados"' not in empty.text
         invalid = client.get("/findings", params={"page": 0})
         assert invalid.status_code == 400
+
+
+def test_pending_money_total_covers_all_filtered_pages(workspace: Path) -> None:
+    with TestClient(create_app(Settings()), base_url="http://127.0.0.1") as client:
+        params = {
+            "rule": "R09",
+            "deputy": [301, 302],
+            "uf": ["SP", "RJ"],
+            "min_amount": "320,00",
+            "limit": 1,
+        }
+        for page in (1, 2):
+            response = client.get("/findings", params={**params, "page": page})
+            assert response.status_code == 200
+            assert "2 achados pendentes" in response.text
+            assert f"Mostrando {page}–{page} de 2 achados" in response.text
+            assert "<strong>R$ 642,18</strong>" in response.text
+            assert "Soma dos achados filtrados; pode haver sobreposição." in (
+                response.text
+            )
+        filtered = client.get("/findings", params={**params, "deputy": 301})
+        assert "1 achados pendentes" in filtered.text
+        assert "<strong>R$ 321,09</strong>" in filtered.text
 
 
 def test_multiple_deputies_and_states_survive_pagination(workspace: Path) -> None:

@@ -51,6 +51,10 @@ strong { font-weight: 650; }
 .eyebrow { margin-bottom: 0.6rem; color: var(--green); font-size: 0.72rem; font-weight: 750; letter-spacing: 0.12em; text-transform: uppercase; }
 .lead { margin-bottom: 0; color: var(--muted); font-size: 0.95rem; }
 .page-count { flex-shrink: 0; padding: 0.35rem 0.8rem; border: 1px solid var(--line); border-radius: 2rem; font-size: 0.8rem; color: var(--muted); }
+.page-summary { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; max-width: 23rem; text-align: right; }
+.page-total { display: flex; flex-direction: column; gap: 0.15rem; margin: 0; }
+.page-total strong { font-size: 1.2rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.page-total-note { margin: 0; font-size: 0.75rem; color: var(--muted); }
 .panel { padding: 1.5rem; border: 1px solid var(--line); border-radius: 0.65rem; background: var(--surface); box-shadow: 0 2px 3px #20352f04; }
 .panel + .panel { margin-top: 1.25rem; }
 .section-heading { margin: 0; font-size: 0.95rem; }
@@ -166,8 +170,8 @@ pre { max-height: 34rem; margin: 1rem 0 0; padding: 1rem; border: 1px solid #e0e
   .site-header-inner { padding: 1rem 1.1rem; gap: 1rem; }
   .brand-description { max-width: 12rem; }
   .site-header nav { max-width: 8rem; font-size: 0.8rem; text-align: right; }
-  .page-heading { align-items: flex-start; gap: 1rem; }
-  .page-count { display: none; }
+  .page-heading { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .page-summary { align-items: flex-start; text-align: left; }
   .filter-form { grid-template-columns: 1fr 1fr; }
   .filter-actions { grid-column: 1 / -1; }
   .field-rule { grid-column: 1 / -1; }

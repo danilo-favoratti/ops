@@ -47,6 +47,12 @@ whose latest decision is `revisar`. Filter by rule, deputy ID, UF, and minimum
 amount. The amount belongs to the finding's rule; it is not automatically a
 confirmed loss or an amount to recover.
 
+The header shows the pending count and total flagged amount for all findings
+matching the selected filters, across every page. Both use the same pending
+selection. Amounts display as Brazilian reais (for example, `R$ 1.348.500,00`).
+The total sums finding amounts without deduplicating expenses across rules or
+cumulative periods; the interface notes that these amounts can overlap.
+
 The list is available at `/` and `/findings`; query parameters are `rule`,
 `deputy`, `uf`, `min_amount`, and `offset`. Amounts accept a decimal dot or comma,
 for example `min_amount=100.50` or `min_amount=100,50`, without thousands

@@ -17,6 +17,7 @@ from opsiu.application.ports import (
     ReviewDetail,
     ReviewFilters,
     ReviewItem,
+    ReviewSummary,
     RunMetadata,
 )
 from opsiu.application.review import ReviewService
@@ -127,6 +128,13 @@ class Repository:
 
     def count_pending(self, filters: ReviewFilters) -> int:
         return len(self.list_pending(filters))
+
+    def summarize_pending(self, filters: ReviewFilters) -> ReviewSummary:
+        items = self.list_pending(filters)
+        return ReviewSummary(
+            len(items),
+            sum((item.record.finding.amount for item in items), Decimal("0")),
+        )
 
     def get_finding(self, finding_key: str) -> ReviewDetail | None:
         self.reads.append(finding_key)
@@ -351,6 +359,8 @@ def test_list_and_detail_reads_forward_filters_without_creating_runs(
     assert repository.filters == [filters]
     assert repository.current is not None
     assert selected == (ReviewItem(repository.current.record, None),)
+    assert review.summarize_pending(filters) == ReviewSummary(1, Decimal("10.01"))
+    assert repository.filters[-1] == filters
     key = repository.current.record.finding.finding_key
     assert review.get_finding(key) == repository.current
     with pytest.raises(LookupError):

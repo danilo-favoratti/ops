@@ -7,6 +7,7 @@ from opsiu.application.ports import (
     ReviewFilters,
     ReviewItem,
     ReviewRepository,
+    ReviewSummary,
     RunFactory,
 )
 from opsiu.domain.decisions import Decision, DecisionValue, parse_decision
@@ -35,6 +36,9 @@ class ReviewService:
 
     def count_pending(self, filters: ReviewFilters | None = None) -> int:
         return self.repository.count_pending(filters or ReviewFilters())
+
+    def summarize_pending(self, filters: ReviewFilters | None = None) -> ReviewSummary:
+        return self.repository.summarize_pending(filters or ReviewFilters())
 
     def get_finding(self, finding_key: str) -> ReviewDetail:
         if not isinstance(finding_key, str) or not finding_key.strip():
