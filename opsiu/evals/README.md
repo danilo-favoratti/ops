@@ -23,33 +23,45 @@ notes. Recommendations are `manter`, `descartar`, or `revisar`.
 
 [`dataset.py`](dataset.py) pins the SHA-256 of the checked-in
 [200-record mini fixture](../tests/fixtures/mini_dataset/Ano-2099.json).
-It derives four independent copies in original order. For replica index 0–3,
+It derives four independent copies in original order. The generated expenses
+use **2024** for competence and issue dates, within the researched cap periods.
+The six course/event rows are adjusted to totals of R$ 9,145.63, R$ 9,145.61
+and R$ 9,145.62: one cent above, one cent below and exactly at that year's
+R$ 9,145.62 cap. Their gross and net amounts remain equal, with zero deduction.
+The original checked-in fixture stays unchanged.
+
+For replica index 0–3,
 it adds `index * 100000` to document IDs and `index * 10000` to deputy IDs,
 prefixes invoice numbers with `EVAL-{index+1}-`, and updates the synthetic
-`example.invalid` document URL. All other fields remain unchanged. This
+`example.invalid` document URL. Other than the dated/course adaptations above,
+all other fields remain unchanged. This
 preserves within-copy duplicate invoices and prevents cross-copy grouping.
 
-The existing deterministic rules R01–R10 and R14 produce 60 findings at the
+The existing deterministic rules R01–R09 produce 52 findings at the
 default 5% quota margin. Sorting by replica, rule ID, and document ID and taking
-the first 50 gives all 15 findings from each of the first three copies and
-R01–R05 from the fourth. Nondefault quota margins are rejected because these
+the first 50 gives all 13 findings from each of the first three copies and
+R01–R08 from the fourth (including four R07 findings). Nondefault quota margins
+are rejected because these
 labels describe that pinned configuration. The configured production year
-range does not affect the isolated synthetic year 2099.
+range does not affect the isolated synthetic expenses for 2024.
 
-R01 labels use rule version 2 keys; R09 labels use version 3 keys. The duplicate
+R01 labels use rule version 3 keys, R05 version 2 and R09 version 3. The duplicate
 fixtures have usable invoice numbers and matching known issue dates, so their
 expected recommendations are unchanged.
+Suspended rules R10 and R14 are excluded; their unsupported assumptions are not
+re-enabled for evaluations. The standalone runner uses the production policies
+without a test monkeypatch.
 
 These are **synthetic reference labels, without human validation**. They are
-not 50 independently audited expenses. There are 26 `manter` labels for exact
-cap and CPF signals under the fixture assumptions, and 24 `revisar` labels for
-cumulative quota approximations, duplicate signals, and filing-date proxies.
+not 50 independently audited expenses. There are 28 `manter` labels for exact
+cap and CPF signals under the fixture assumptions, and 22 `revisar` labels for
+cumulative quota approximations and duplicate signals.
 The notes explain each assumption. No `descartar` examples are invented in
 the absence of exculpatory fixture facts; grader unit tests cover that label.
 External-data rules R11–R13 are outside this first evaluation set.
 
 The unchanged production scripted gateway always emits a conservative
-`revisar` annotation. Its full-set agreement is therefore **24/50 = 48%**.
+`revisar` annotation. Its full-set agreement is therefore **22/50 = 44%**.
 That measures the evaluation pipeline and a constant baseline, not language
 model accuracy. Expected labels and notes are supplied only to the grader,
 never to the agent request or scripted scenario. The deterministic rules

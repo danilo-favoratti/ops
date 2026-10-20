@@ -129,15 +129,19 @@ explanation history. Scripted opinions remain labeled as simulated.
 
 Reported amounts are rule-specific signals, not proven losses or unique sums
 recoverable. Accumulated quota excesses and duplicate-invoice findings can
-overlap. R10 uses accounting competence as a filing-date proxy; R12 signals a
-shared surname, not proven kinship; R13 uses narrow supplier heuristics. Blank
-PDF extraction is flagged `needs_ocr`; OCR is not implemented.
+overlap. R10 is suspended without actual supply/submission dates, and R14 is
+suspended without pooled leadership entitlement history. R12 requires a valid
+numeric CNPJ and an ownership qualification, but a shared surname still does not
+prove kinship. R13 uses selected registered activities as invoice-review leads;
+the company name alone no longer triggers it. Blank PDF extraction is flagged
+`needs_ocr`; OCR is not implemented.
 
-Published cap values are assigned an assumed effective date of 2023-01-01.
-Historical policy values still require research. The source's inconsistent R05
-adjustment wording is retained explicitly; see
-[ADR 0008](docs/adr/0008-policy-effective-date-assumption.md) and the individual
-rule documents before interpreting findings.
+R01 and R05 use researched cap schedules for 2023–2026, with transition and
+entitlement uncertainty recorded explicitly. Other policy histories, including
+R07's state quotas, still retain the initial effective-date assumptions and need
+research. See [ADR 0008](docs/adr/0008-policy-effective-date-assumption.md),
+[ADR 0014](docs/adr/0014-researched-policies-and-rule-suspension.md) and the
+individual rule documents before interpreting findings.
 
 ## Development and documentation
 

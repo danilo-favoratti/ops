@@ -4,6 +4,8 @@ from collections.abc import Mapping
 from decimal import Decimal
 
 from opsiu.domain.errors import DomainError
+from opsiu.domain.identifiers import is_valid_numeric_cnpj, valid_numeric_cnpj_sql
+from opsiu.domain.policies import R12_OWNERSHIP_QUALIFICATIONS
 from opsiu.domain.rules.base import RuleDescriptor, RuleResult
 from opsiu.domain.rules.cnpj_common import require_cnpj_coverage
 from opsiu.domain.text import normalize_name, surname_tokens
@@ -12,7 +14,7 @@ from opsiu.domain.text import normalize_name, surname_tokens
 class R12SobrenomeSocio:
     descriptor = RuleDescriptor(
         id="R12",
-        version="3",
+        version="4",
         severity="revisar",
         title="Sobrenome compartilhado com sócio pessoa física",
         fundamento=(
@@ -24,13 +26,18 @@ class R12SobrenomeSocio:
         combine_document_rows=True,
         identify_missing_documents=True,
     )
-    sql = """
+    sql = f"""
+        WITH eligible_expenses AS (
+            SELECT * FROM despesas_current
+            WHERE {valid_numeric_cnpj_sql("cnpj_cpf_digits")}
+              AND NOT (cpf IS NULL AND sigla_uf = 'NA')
+        )
         SELECT d.id_documento, d.valor_liquido, d.nome_parlamentar,
             d.record_sha256, f.source_year,
             d.cnpj_cpf_digits AS cnpj, substr(d.cnpj_cpf_digits, 1, 8) AS cnpj_root,
             CAST(i.snapshot_id AS VARCHAR) AS snapshot_id, i.source_sha256,
             r.cnpj_root AS covered_root, partners.socios
-        FROM despesas_current d
+        FROM eligible_expenses d
         JOIN source_files f USING (source_file_id)
         LEFT JOIN cnpj_imports_current i ON TRUE
         LEFT JOIN cnpj_import_roots_current r
@@ -45,12 +52,12 @@ class R12SobrenomeSocio:
             FROM cnpj_socios_current s
             WHERE s.cnpj_root = substr(d.cnpj_cpf_digits, 1, 8) AND s.tipo_socio = 2
         ) partners ON TRUE
-        WHERE regexp_full_match(d.cnpj_cpf_digits, '[0-9]{14}')
-          AND NOT (d.cpf IS NULL AND d.sigla_uf = 'NA')
         ORDER BY d.id_documento
     """
 
     def evaluate(self, row: Mapping[str, object]) -> RuleResult | None:
+        if not is_valid_numeric_cnpj(row["cnpj"]):
+            return None
         require_cnpj_coverage(row)
         name = row["nome_parlamentar"]
         if not isinstance(name, str):
@@ -64,9 +71,15 @@ class R12SobrenomeSocio:
         matches: list[dict[str, object]] = []
         all_tokens: set[str] = set()
         for partner in partners:
-            if not isinstance(partner, dict) or not isinstance(
-                partner.get("nome"), str
+            if not isinstance(partner, dict):
+                raise DomainError("R12 partner candidates must be mappings")
+            qualification = partner.get("qualificacao")
+            if (
+                not isinstance(qualification, str)
+                or qualification not in R12_OWNERSHIP_QUALIFICATIONS
             ):
+                continue
+            if not isinstance(partner.get("nome"), str):
                 raise DomainError("R12 partner name is invalid")
             matched = sorted(deputy_tokens & surname_tokens(partner["nome"]))
             if matched:

@@ -1,19 +1,21 @@
-"""R14: leadership-account variant of the annual quota estimate."""
+"""R14 is suspended until the pooled leadership entitlements are known."""
 
-from opsiu.domain.rules.base import RuleDescriptor
-from opsiu.domain.rules.quota import QuotaEvaluator, quota_sql
+from opsiu.domain.rules.base import RuleDescriptor, SuspendedRule
 
 
-class R14Liderancas(QuotaEvaluator):
+class R14Liderancas(SuspendedRule):
     descriptor = RuleDescriptor(
         id="R14",
-        version="1",
-        title="Estimativa do limite acumulado de lideranças",
-        severity="media",
+        version="2",
+        title="Limite da cota coletiva de liderança",
+        severity="revisar",
         fundamento=(
-            "O adicional não é cumulativo caso o parlamentar exerça "
-            "mais de um desses cargos."
+            "A cota da liderança reúne adicionais cedidos por líderes e "
+            "vice-líderes, em conta administrada separadamente."
         ),
-        needs=("despesas_current", "adicionais"),
+        suspended_reason=(
+            "Falta o histórico das cessões e dos ajustes da cota coletiva. Um "
+            "adicional individual não representa o orçamento da liderança. "
+            "R14 está suspensa até existir evidência do limite aplicável."
+        ),
     )
-    sql = quota_sql(leadership=True)

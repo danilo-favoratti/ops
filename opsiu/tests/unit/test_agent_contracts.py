@@ -314,7 +314,7 @@ def test_factories_bind_only_injected_capabilities_and_read_only_authority() -> 
         assert contract.limits.max_turns == 1
         assert contract.limits.max_tool_calls == 0
         assert contract.prompt_version == (
-            "1" if contract.agent_id == "consolidar-deputado" else "2"
+            "3" if contract.agent_id.startswith("explicar-achado-") else "2"
         )
         assert contract.input_schema in INPUT_SCHEMAS
         assert contract.output_schema in OUTPUT_SCHEMAS

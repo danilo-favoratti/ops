@@ -21,7 +21,10 @@ from opsiu.application.ports import JsonValue, ReviewFilters
 from opsiu.application.review import ReviewService
 from opsiu.application.runs import Run
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("synthetic_cap_policies"),
+]
 FIXTURE = Path(__file__).parents[1] / "fixtures/mini_dataset/Ano-2099.json"
 
 

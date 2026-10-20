@@ -165,6 +165,15 @@ class Rule(Protocol):
   `check` skips a rule, with a recorded `step` status `skipped`, when a needed
   relation is absent. External rules also validate loaded coverage and snapshot
   provenance; an existing empty table is not proof that the required source was loaded.
+- `CoverageAwareRule.coverage_reason` optionally identifies candidates outside
+  researched policy coverage. Any uncovered candidate skips the entire rule
+  publication, preserving previous findings and recording `rule.coverage_missing`.
+- `descriptor.suspended_reason` explicitly withdraws an unsupported criterion in
+  a new rule version. Normal checks append supersessions for its old findings,
+  record `rule.suspended`, and mark the step skipped without evaluating candidates.
+  Dry runs preserve findings. This differs from temporary missing-source skips,
+  which never withdraw findings; see
+  [ADR 0014](docs/adr/0014-researched-policies-and-rule-suspension.md).
 - `version` is bumped whenever `sql` or `evaluate` changes; `CHANGELOG.md`
   records why. Findings from old versions become `superseded`.
 - `registry.py` is the single source of truth. A test asserts that every
@@ -173,10 +182,15 @@ class Rule(Protocol):
 
 ### Policies as data
 
-Caps, the state quota table, and leadership add-ons live in `policies.py` as
-frozen dataclasses with `valid_from` dates, loaded into DuckDB tables at
-ingest. Rules read them from tables, so a future year-by-year table needs no
-rule changes.
+Legacy caps, the state quota table, and leadership add-ons live in `policies.py`
+as frozen dataclasses with `valid_from` dates, loaded into DuckDB tables at
+ingest. Existing rows remain immutable. R01 version 3 and R05 version 2 instead
+select frozen researched schedules from `researched_caps.py`, with explicit
+competence coverage, legal effective dates, source URLs, formulas and limitations.
+These rules do not read the legacy `caps` assumptions. Policy selection and
+evaluation remain pure domain operations; the application prevents incomplete
+coverage from publishing partial results. Changing an emitted policy or its
+evidence requires a deliberate rule-version decision.
 
 ## Application: run lifecycle
 
@@ -389,7 +403,8 @@ all product source and test code remains under `opsiu/`.
 ## Open points
 
 - OCR for scanned PDFs: deferred; `needs_ocr` flag keeps them visible.
-- Year-by-year caps: policies already carry `valid_from`, data still to be
-  researched.
+- Year-by-year caps: R01/R05 have researched 2023–2026 schedules; other policy
+  histories, including R07 state quotas and individual entitlements, still need
+  research. R10/R14 are suspended until their required evidence is available.
 - Disk budget for the Receita dump and PDF cache: automatic disk-budget settings
   are not implemented; measure storage needs before designing retention or limits.

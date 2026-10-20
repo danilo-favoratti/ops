@@ -12,7 +12,10 @@ from typer.testing import CliRunner
 from opsiu.adapters.duckdb.connection import connect_database
 from opsiu.interfaces.cli import app
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("synthetic_cap_policies"),
+]
 FIXTURE = Path(__file__).parents[1] / "fixtures/mini_dataset/Ano-2099.json"
 
 

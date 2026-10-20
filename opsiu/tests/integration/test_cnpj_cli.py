@@ -23,7 +23,8 @@ def write_rows(path: Path, rows: list[list[str]]) -> None:
 
 def establishment(root: str, order: str, cnae: str) -> list[str]:
     row = [""] * 30
-    row[0:6] = [root, order, "00", "1" if order == "0001" else "2", "", "02"]
+    check_digits = "72" if order == "0002" else "91"
+    row[0:6] = [root, order, check_digits, "1" if order == "0001" else "2", "", "02"]
     row[10:13] = ["20200101", cnae, ""]
     return row
 
@@ -100,12 +101,12 @@ def workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         ],
     )
     rows = [
-        expense(1, "11111111000100", 13),
-        expense(2, "11111111000200", 13),
-        expense(3, "22222222000100", 1),
-        expense(4, "33333333000100", 120),
-        expense(5, "44444444000100", 120),
-        expense(6, "66666666000100", 13),
+        expense(1, "11111111000191", 13),
+        expense(2, "11111111000272", 13),
+        expense(3, "22222222000191", 1),
+        expense(4, "33333333000191", 120),
+        expense(5, "44444444000191", 120),
+        expense(6, "66666666000191", 13),
     ]
     rows[3].update(
         nomeParlamentar="Carlos Silva", cpf="00000020255", numeroDeputadoID=202
@@ -159,7 +160,7 @@ def test_same_dump_reload_covers_new_current_root_without_changing_old_findings(
     original = findings(workspace)
     source = workspace / "input/Ano-2099.json"
     data = json.loads(source.read_text())
-    data["dados"].append(expense(7, "55555555000100", 13))
+    data["dados"].append(expense(7, "55555555000191", 13))
     source.write_text(json.dumps(data), encoding="utf-8")
     invoke("ingest")
     invoke("check", "--regras", "R12,R13", expected=1)
@@ -167,12 +168,14 @@ def test_same_dump_reload_covers_new_current_root_without_changing_old_findings(
     invoke("fetch", "cnpj", "--from", str(workspace / "dump"))
     invoke("check", "--regras", "R12,R13")
     current = findings(workspace)
-    assert len(current) == len(original) + 1
-    assert all(row in current for row in original)
+    assert current == original
     with connect_database(workspace / "db.duckdb", read_only=True) as db:
-        assert db.execute(
-            "SELECT rule_id FROM findings WHERE id_documento=209910007"
-        ).fetchone() == ("R13",)
+        assert (
+            db.execute(
+                "SELECT rule_id FROM findings WHERE id_documento=209910007"
+            ).fetchone()
+            is None
+        )  # "Supermercado" in a restaurant's name is not a lead.
 
 
 def test_failed_parse_retains_prior_import_and_successful_empty_dump_supersedes(
@@ -222,7 +225,7 @@ def test_r13_repeated_accounting_rows_preserve_adjustments_and_replay(
         ).fetchone()
         assert row is not None
         version, severity, amount, raw = row
-        assert (version, severity, amount) == ("2", "revisar", Decimal("30.00"))
+        assert (version, severity, amount) == ("3", "revisar", Decimal("30.00"))
         evidence = json.loads(raw)
         assert sorted(Decimal(row["valor"]) for row in evidence["ocorrencias"]) == [
             Decimal("-5.00"),
@@ -293,7 +296,7 @@ def test_r12_zero_documents_are_separate_records_with_stable_history(
         assert len(exported) == 3
         assert db.execute(
             "SELECT rule_version,amount FROM findings WHERE id_documento=209910003"
-        ).fetchone() == ("3", Decimal("20.00"))
+        ).fetchone() == ("4", Decimal("20.00"))
         names = {
             record.nome_parlamentar
             for record in exported
@@ -318,7 +321,7 @@ def test_r12_record_keys_survive_relocation_and_reordering_but_track_changes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     source = workspace / "input/Ano-2099.json"
-    zero_a = dict(expense(1, "22222222000100", 1), idDocumento=0)
+    zero_a = dict(expense(1, "22222222000191", 1), idDocumento=0)
     zero_b = dict(zero_a, nomeParlamentar="Bruna Quirino", numeroDeputadoID=202)
     source.write_text(json.dumps({"dados": [zero_a, zero_a, zero_b]}))
     invoke("ingest")

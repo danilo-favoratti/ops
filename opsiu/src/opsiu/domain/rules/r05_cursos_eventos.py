@@ -1,20 +1,26 @@
 """R05: monthly specialized courses and events cap."""
 
+from opsiu.domain.researched_caps import COURSE_CAP_POLICIES
 from opsiu.domain.rules.base import RuleDescriptor
-from opsiu.domain.rules.monthly_cap import MonthlyCapEvaluator, monthly_cap_sql
+from opsiu.domain.rules.researched_monthly_cap import (
+    ResearchedMonthlyCapEvaluator,
+    researched_monthly_cap_sql,
+)
 
 
-class R05CursosEventos(MonthlyCapEvaluator):
+class R05CursosEventos(ResearchedMonthlyCapEvaluator):
     descriptor = RuleDescriptor(
         id="R05",
-        version="1",
+        version="2",
         title="Limite mensal de cursos, congressos e eventos",
         severity="alta",
         fundamento=(
-            "participação em cursos, congressos ou eventos, realizados por "
-            "instituição especializada (limite mensal inacumulável de 25% "
-            "do valor da menor cota – hoje R$ 7.697,17);"
+            "Cursos e eventos especializados: limite mensal inacumulável de "
+            "25% da menor cota mensal, conforme o art. 2º, XIII, do Ato da "
+            "Mesa 43/2009; aplicar a tabela vigente na competência."
         ),
-        needs=("despesas_current", "caps"),
+        combine_document_rows=True,
+        needs=("despesas_current",),
     )
-    sql = monthly_cap_sql(137)
+    policies = COURSE_CAP_POLICIES
+    sql = researched_monthly_cap_sql(137)

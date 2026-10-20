@@ -1,9 +1,8 @@
-"""Annual quotas and leadership allowances honor the configured check margin."""
+"""Annual quotas honor margins while unsupported pooled budgets stay suspended."""
 
 import json
 import os
 import shutil
-from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -44,7 +43,6 @@ def test_quota_margin_and_leadership_on_synthetic_ingest(
         ("R07", 209900034),
         ("R07", 209900036),
         ("R07", 209900055),
-        ("R14", 209900037),
     ]
     if margin == "0":
         expected.extend([("R07", 209900053), ("R07", 209900054)])
@@ -57,9 +55,12 @@ def test_quota_margin_and_leadership_on_synthetic_ingest(
             "SELECT count(*) FROM findings WHERE id_documento=209900052"
         ).fetchone() == (0,)
         assert db.execute(
-            "SELECT amount FROM findings WHERE rule_id='R14'"
-        ).fetchone() == (Decimal("146.96"),)
+            "SELECT count(*) FROM findings WHERE rule_id='R14'"
+        ).fetchone() == (0,)
     run_id = result.stdout.splitlines()[0].removeprefix("run_id: ")
     manifest = json.loads((tmp_path / "runs" / run_id / "manifest.json").read_text())
     assert manifest["counters"]["findings_detected"] == len(expected)
+    assert manifest["counters"]["rules_suspended"] == 1
+    assert manifest["counters"]["rules_skipped"] == 1
+    assert manifest["counters"]["rules_completed"] == 1
     assert set(manifest["rule_versions"]) == {"R07", "R14"}

@@ -524,7 +524,9 @@ def test_missing_deduction_is_null_in_both_versioned_agent_inputs(
     assert opinion.failure is None and invoice.failure is None
     assert len(invocations) == 2
     for call in invocations:
-        assert call.prompt.version == "2"
+        assert call.prompt.version == (
+            "3" if call.prompt.name == "explicar-achado" else "2"
+        )
         assert isinstance(call.encoded_input, dict)
         record = call.encoded_input["registro"]
         assert isinstance(record, dict)

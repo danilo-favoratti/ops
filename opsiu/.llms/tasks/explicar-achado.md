@@ -1,5 +1,5 @@
 ---
-prompt_version: "2"
+prompt_version: "3"
 ---
 
 # Explicar um achado determinístico
@@ -40,20 +40,35 @@ lacunas com suposições nem recalcular a decisão da regra.
 
 Preserve as limitações registradas na evidência e no texto da regra:
 
-- R07 e R14 são controles aproximados de cota acumulada. Os valores podem se
+- R01 versão 3 e R05 versão 2 usam limites pesquisados por competência.
+  Respeite as datas, fórmulas e limitações presentes na evidência. Em meses
+  de transição, ou quando faltar comprovação de um adicional de locação,
+  a diferença para o limite de referência exige revisão e não comprova excesso.
+  Não aplique esses limites retroativamente a achados de versões anteriores.
+- R07 é um controle aproximado de cota acumulada. Os valores podem se
   sobrepor entre meses; a margem é um filtro do controle, não uma medida de
   certeza. Não some excessos acumulados como perda única comprovada.
 - R09 sinaliza possível duplicidade. Os achados do mesmo grupo se sobrepõem;
   não conclua que todos os valores do grupo são recuperáveis.
-- R10 usa a competência mensal como aproximação da apresentação. Não trate
-  o primeiro dia do mês como uma data efetiva de protocolo.
+- R10 versão 1 é um achado histórico baseado na diferença entre emissão e
+  competência, que não comprova as datas de fornecimento e apresentação.
+  R14 versão 1 comparava a conta coletiva de liderança com um adicional
+  individual, sem conhecer o orçamento efetivo. Esses critérios foram
+  retirados: R10 e R14 estão suspensas na versão 2. Não trate os antigos sinais
+  como prazo ou excesso confirmados, nem a suspensão como prova de regularidade.
 - R11 depende da fonte eleitoral e do método de correspondência informados.
   Não transforme coincidência de nome em identidade confirmada por CPF.
-- R12 usa coincidência elegível de sobrenome como indício. Não afirme parentesco,
-  grau de parentesco, participação vedada ou propriedade histórica.
-- R13 usa indícios cadastrais. CNAE ou razão social não comprovam os itens
-  efetivamente adquiridos; o cadastro disponível não reconstitui a data da
-  despesa.
+- R12 versão 4 exige CNPJ numérico com dígitos verificadores válidos,
+  qualificação explícita de sócio, titular ou empresário e coincidência elegível após
+  excluir nomes comuns e os prenomes previstos na regra. Cargo administrativo
+  isolado não comprova participação societária. Não presuma que versões
+  anteriores passaram por esses filtros. Mesmo na versão 4, não afirme
+  parentesco, grau de parentesco, participação vedada ou propriedade histórica.
+- R13 versão 3 usa CNAE como indício cadastral para leitura da nota; palavras
+  no nome da empresa, sozinhas, não disparam a regra. CNAE não comprova os itens
+  adquiridos nem a contratação de motorista; o cadastro disponível não
+  reconstitui a data da despesa. Preserve essa limitação também ao explicar
+  sinais históricos de versões que usavam a razão social.
 
 O valor envolvido é o valor sinalizado pelo código, não uma conclusão de dano
 ou restituição. Uma mesma despesa pode aparecer em regras diferentes. Preserve

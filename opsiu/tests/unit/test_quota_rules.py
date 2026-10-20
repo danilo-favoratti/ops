@@ -190,7 +190,7 @@ def test_missing_policy_in_zero_spend_month_is_not_silently_ignored(
 
 
 @pytest.mark.parametrize("name,role", LEADERSHIP_ROLES.items())
-def test_known_leadership_alias_resolves_one_non_cumulative_addition(
+def test_known_leadership_alias_cannot_establish_pooled_budget(
     db: DuckDBPyConnection,
     name: str,
     role: str,
@@ -202,15 +202,14 @@ def test_known_leadership_alias_resolves_one_non_cumulative_addition(
     )
     expense(db, 2099, 1, "110", name=name, leadership=True)
     rule = R14Liderancas()
-    result = rule.evaluate(rows(db, rule)[0])
-    assert result is not None and result.amount == Decimal("10.00")
-    assert result.evidence["cargo"] == role
-    assert result.evidence["cota_mensal"] == Decimal("0")
-    assert result.evidence["adicional_mensal"] == Decimal("100")
+    assert rows(db, rule) == []
+    assert rule.descriptor.suspended_reason is not None
+    with pytest.raises(DomainError, match="suspended rule"):
+        rule.evaluate({"cargo": role, "adicional_mensal": Decimal("100")})
     assert rows(db, R07CotaUF()) == []
 
 
-def test_leadership_uses_dated_additions_and_unknown_names_fail(
+def test_dated_individual_additions_do_not_reactivate_leadership_rule(
     db: DuckDBPyConnection,
 ) -> None:
     db.execute(
@@ -218,12 +217,10 @@ def test_leadership_uses_dated_additions_and_unknown_names_fail(
         "('lider_governo_camara',200,DATE '2099-02-01')"
     )
     expense(db, 2099, 2, "310", name="LIDERANÇA DO GOVERNO NA CÂMARA", leadership=True)
-    rule = R14Liderancas(Decimal("0"))
-    result = rule.evaluate(rows(db, rule)[0])
-    assert result is not None and result.amount == Decimal("10")
+    rule = R14Liderancas()
+    assert rows(db, rule) == []
     db.execute("UPDATE despesas_current SET nome_parlamentar='LIDERANÇA DESCONHECIDA'")
-    with pytest.raises(DomainError, match="unknown or ambiguous leadership role"):
-        rule.evaluate(rows(db, rule)[0])
+    assert rows(db, rule) == []
 
 
 def test_multiple_roles_and_mixed_classifications_do_not_invent_an_allowance(
@@ -236,9 +233,9 @@ def test_multiple_roles_and_mixed_classifications_do_not_invent_an_allowance(
     expense(db, 2099, 1, "100", name="LIDERANÇA DO GOVERNO NA CÂMARA", leadership=True)
     expense(db, 2099, 2, "100", name="VICE-LIDERANÇA DA MINORIA", leadership=True)
     rule = R14Liderancas()
-    with pytest.raises(DomainError, match="unknown or ambiguous leadership role"):
-        rule.evaluate(rows(db, rule)[0])
+    assert rows(db, rule) == []
     expense(db, 2099, 3, "100")
-    for variant in (R07CotaUF(), R14Liderancas()):
-        with pytest.raises(DomainError, match="ambiguous state"):
-            variant.evaluate(rows(db, variant)[0])
+    assert rows(db, rule) == []
+    individual_rule = R07CotaUF()
+    with pytest.raises(DomainError, match="ambiguous state"):
+        individual_rule.evaluate(rows(db, individual_rule)[0])

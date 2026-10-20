@@ -77,7 +77,7 @@ def test_null_glosa_survives_ingestion_exports_review_and_agent_trace(
         ).fetchall()
         assert len(traces) == 1
         assert json.loads(traces[0][0])["registro"]["valor_glosa"] is None
-        assert traces[0][1:] == ("opsiu.parecer-request.v2", "2")
+        assert traces[0][1:] == ("opsiu.parecer-request.v2", "3")
     repeat = runner.invoke(app, ["ingest"])
     assert repeat.exit_code == 0
     rows[0]["valorGlosa"] = "malformed"

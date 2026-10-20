@@ -123,9 +123,11 @@ Summary amounts are amounts signaled by the rules, not proven or unique losses.
 The same document can appear under more than one rule. Rules also use different
 amount bases: cap and quota excesses, net expenses, or gross invoice amounts.
 
-[R07](../../.llms/rules/R07-cota-uf.md) and
+[R07](../../.llms/rules/R07-cota-uf.md) and historical version 1 findings from
 [R14](../../.llms/rules/R14-liderancas.md) carry accumulated excess across months,
-so consecutive findings can overlap. [R09](../../.llms/rules/R09-nota-duplicada.md)
+so consecutive findings can overlap. R14 version 2 is suspended; checking it
+supersedes old active findings while preserving earlier exports and decisions.
+[R09](../../.llms/rules/R09-nota-duplicada.md)
 creates a finding for each document in a possible duplicate group, repeating the
 same gross invoice amount. Adding those rows cannot establish the amount to
 recover. Consult the rule evidence and retain human review before final reporting.

@@ -12,7 +12,10 @@ from typer.testing import CliRunner
 from opsiu.adapters.duckdb.connection import connect_database
 from opsiu.interfaces.cli import app
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("synthetic_cap_policies"),
+]
 FIXTURE = Path(__file__).parents[1] / "fixtures/mini_dataset/Ano-2099.json"
 
 
@@ -47,8 +50,6 @@ def test_all_phase_two_rules_have_exact_expected_findings_and_stable_retries(
         ("R08", 209900040),
         ("R09", 209900045),
         ("R09", 209900046),
-        ("R10", 209900048),
-        ("R14", 209900037),
     ]
     with connect_database(tmp_path / "db.duckdb", read_only=True) as db:
         assert (
@@ -66,12 +67,13 @@ def test_all_phase_two_rules_have_exact_expected_findings_and_stable_retries(
             ("R08", Decimal("25.00")),
             ("R09", Decimal("321.09")),
             ("R09", Decimal("321.09")),
-            ("R10", Decimal("10.00")),
         ]
     run_id = checked.stdout.splitlines()[0].removeprefix("run_id: ")
     manifest = json.loads((tmp_path / "runs" / run_id / "manifest.json").read_text())
-    assert manifest["counters"]["rules_completed"] == 11
-    assert manifest["counters"]["findings_detected"] == 15
+    assert manifest["counters"]["rules_completed"] == 9
+    assert manifest["counters"]["rules_suspended"] == 2
+    assert manifest["counters"]["rules_skipped"] == 2
+    assert manifest["counters"]["findings_detected"] == 13
     second = runner.invoke(app, ["check", "--regras", selected])
     assert second.exit_code == 0, second.exception or second.output
     with connect_database(tmp_path / "db.duckdb", read_only=True) as db:

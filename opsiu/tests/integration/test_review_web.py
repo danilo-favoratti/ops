@@ -21,7 +21,10 @@ from opsiu.interfaces.cli import app as cli
 from opsiu.interfaces.web.app import create_app
 from opsiu.settings import Settings
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("synthetic_cap_policies"),
+]
 FIXTURE = Path(__file__).parents[1] / "fixtures/mini_dataset/Ano-2099.json"
 KEY = finding_key("R08", "1", 209900040)
 DUPLICATE = finding_key("R09", "3", 209900045)

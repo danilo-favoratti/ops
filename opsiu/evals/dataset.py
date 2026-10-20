@@ -14,10 +14,21 @@ FIXTURE_PATH = (
 )
 CASES_PATH = Path(__file__).resolve().with_name("labeled_findings.jsonl")
 FIXTURE_SHA256 = "927f5b11ce4d7488e71f39b885c5e6377ad1ad2fd2c27ae8ad5b19176de5e5d4"
-LOCAL_RULE_IDS = (*(f"R{number:02d}" for number in range(1, 11)), "R14")
+LOCAL_RULE_IDS = tuple(f"R{number:02d}" for number in range(1, 10))
+EVALUATION_YEAR = 2024
 REPLICA_COUNT = 4
 DOCUMENT_ID_STRIDE = 100_000
 DEPUTY_ID_STRIDE = 10_000
+# Preserve the above/below/equal cases at the researched 2024 course cap:
+# R$ 9,145.62 (25% of the smallest quota, rounded to cents).
+_COURSE_CASE_VALUES = {
+    "R05-ACIMA-A": "4572.81",
+    "R05-ACIMA-B": "4572.82",
+    "R05-ABAIXO-A": "4572.80",
+    "R05-ABAIXO-B": "4572.81",
+    "R05-IGUAL-A": "4572.81",
+    "R05-IGUAL-B": "4572.81",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,7 +53,8 @@ def build_expense_rows() -> tuple[dict[str, object], ...]:
 
     The file is a small checked-in synthetic fixture, never a production yearly
     file. Each call returns independent dictionaries in replica/source order.
-    Only document/deputy IDs, invoice numbers and synthetic URLs are changed.
+    Dates use a researched policy year. Six course expenses are adapted to that
+    year's cap; replica identity changes prevent cross-copy invoice grouping.
     """
     content = FIXTURE_PATH.read_bytes()
     if hashlib.sha256(content).hexdigest() != FIXTURE_SHA256:
@@ -54,6 +66,13 @@ def build_expense_rows() -> tuple[dict[str, object], ...]:
     for replica in range(REPLICA_COUNT):
         for original in source:
             row = dict(original)
+            row["ano"] = EVALUATION_YEAR
+            row["dataEmissao"] = f"{EVALUATION_YEAR}{str(row['dataEmissao'])[4:]}"
+            if (
+                course_amount := _COURSE_CASE_VALUES.get(str(row["numero"]))
+            ) is not None:
+                row["valorDocumento"] = course_amount
+                row["valorLiquido"] = course_amount
             document_id = int(str(row["idDocumento"])) + replica * DOCUMENT_ID_STRIDE
             row["idDocumento"] = str(document_id)
             row["numeroDeputadoID"] = (

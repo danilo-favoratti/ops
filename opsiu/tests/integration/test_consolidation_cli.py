@@ -16,7 +16,10 @@ from opsiu.adapters.agents.runtimes import build_scripted_runtime
 from opsiu.adapters.duckdb.connection import connect_database
 from opsiu.interfaces.cli import app
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("synthetic_cap_policies"),
+]
 FIXTURE = Path(__file__).parents[1] / "fixtures/mini_dataset/Ano-2099.json"
 
 
@@ -44,10 +47,10 @@ def workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         encoding="utf-8",
     )
     invoke("ingest")
-    invoke("check", "--regras", "R01,R02,R08,R09,R10")
+    invoke("check", "--regras", "R01,R02,R08,R09")
     invoke("explain")
     with connect_database(tmp_path / "db.duckdb", read_only=True) as db:
-        assert db.execute("SELECT count(*) FROM pareceres").fetchone() == (6,)
+        assert db.execute("SELECT count(*) FROM pareceres").fetchone() == (5,)
     return tmp_path
 
 
@@ -75,11 +78,11 @@ def test_summary_retry_force_and_new_opinion_preserve_history(workspace: Path) -
         assert "simulad" in output["resumo"].lower()
         assert all(key in original[2] for key in expected)
         assert db.execute("SELECT count(*) FROM resumo_fontes").fetchone() == (2,)
-        assert db.execute("SELECT count(*) FROM agent_traces").fetchone() == (7,)
+        assert db.execute("SELECT count(*) FROM agent_traces").fetchone() == (6,)
     invoke("explain", "--consolidar", "--deputado", "101")
     with connect_database(workspace / "db.duckdb", read_only=True) as db:
         assert db.execute("SELECT count(*) FROM resumos_deputado").fetchone() == (1,)
-        assert db.execute("SELECT count(*) FROM agent_traces").fetchone() == (7,)
+        assert db.execute("SELECT count(*) FROM agent_traces").fetchone() == (6,)
     invoke("explain", "--consolidar", "--deputado", "101", "--force")
     invoke("explain", "--regras", "R01", "--force")
     invoke("explain", "--consolidar", "--deputado", "101")
@@ -98,10 +101,10 @@ def test_summary_retry_force_and_new_opinion_preserve_history(workspace: Path) -
             ).fetchone()
             == original
         )
-        assert db.execute("SELECT count(*) FROM pareceres").fetchone() == (7,)
+        assert db.execute("SELECT count(*) FROM pareceres").fetchone() == (6,)
         assert db.execute(
             "SELECT count(*) FROM findings WHERE status='active'"
-        ).fetchone() == (6,)
+        ).fetchone() == (5,)
 
 
 def test_summary_budget_resumes_other_deputies_without_repeating(
@@ -121,8 +124,8 @@ def test_summary_budget_resumes_other_deputies_without_repeating(
         assert db.execute(
             "SELECT count(*), count(DISTINCT numero_deputado_id) FROM resumos_deputado"
         ).fetchone() == (2, 2)
-        assert db.execute("SELECT count(*) FROM pareceres").fetchone() == (6,)
-        assert db.execute("SELECT count(*) FROM agent_traces").fetchone() == (8,)
+        assert db.execute("SELECT count(*) FROM pareceres").fetchone() == (5,)
+        assert db.execute("SELECT count(*) FROM agent_traces").fetchone() == (7,)
 
 
 def test_foreign_summary_key_fails_trace_without_publishing_summary(
@@ -163,7 +166,7 @@ def test_foreign_summary_key_fails_trace_without_publishing_summary(
         ).fetchone()
         assert row is not None and row[:2] == ("failed", None)
         assert json.loads(row[2])["ranking"][0]["finding_key"] == "f" * 64
-        assert db.execute("SELECT count(*) FROM pareceres").fetchone() == (6,)
+        assert db.execute("SELECT count(*) FROM pareceres").fetchone() == (5,)
 
 
 def test_live_summary_does_not_consume_scripted_opinions(
@@ -177,7 +180,7 @@ def test_live_summary_does_not_consume_scripted_opinions(
     invoke("explain", "--consolidar", "--deputado", "101")
     with connect_database(workspace / "db.duckdb", read_only=True) as db:
         assert db.execute("SELECT count(*) FROM resumos_deputado").fetchone() == (0,)
-        assert db.execute("SELECT count(*) FROM agent_traces").fetchone() == (6,)
+        assert db.execute("SELECT count(*) FROM agent_traces").fetchone() == (5,)
 
 
 def test_superseded_findings_leave_old_summary_intact(workspace: Path) -> None:
@@ -190,7 +193,7 @@ def test_superseded_findings_leave_old_summary_intact(workspace: Path) -> None:
     invoke("explain", "--consolidar", "--deputado", "101")
     with connect_database(workspace / "db.duckdb", read_only=True) as db:
         assert db.execute("SELECT * FROM resumos_deputado").fetchall() == original
-        assert db.execute("SELECT count(*) FROM agent_traces").fetchone() == (7,)
+        assert db.execute("SELECT count(*) FROM agent_traces").fetchone() == (6,)
         assert db.execute("SELECT count(*) FROM resumo_fontes").fetchone() == (2,)
 
 

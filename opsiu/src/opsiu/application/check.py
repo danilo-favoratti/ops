@@ -1,5 +1,6 @@
 """Evaluate deterministic rules and publish only complete, successful results."""
 
+from collections import Counter
 from copy import deepcopy
 from decimal import Decimal
 
@@ -12,7 +13,7 @@ from opsiu.domain.findings import (
     evidence_json,
     source_record_identity,
 )
-from opsiu.domain.rules.base import Rule, RuleResult
+from opsiu.domain.rules.base import CoverageAwareRule, Rule, RuleResult
 
 
 def check(
@@ -26,8 +27,10 @@ def check(
     for name in (
         "rules_completed",
         "rules_skipped",
+        "rules_suspended",
         "rules_failed",
         "candidates_evaluated",
+        "candidates_without_coverage",
         "findings_detected",
         "findings_inserted",
         "findings_unchanged",
@@ -40,6 +43,33 @@ def check(
         descriptor = rule.descriptor
         versions[descriptor.id] = descriptor.version
         with run.step(f"verificar_{descriptor.id}") as step:
+            if descriptor.suspended_reason is not None:
+                superseded = 0
+                if not dry_run:
+                    changes = repository.publish_findings(
+                        descriptor.id,
+                        descriptor.version,
+                        (),
+                        run_id=run.run_id,
+                        step_id=run.require_step(),
+                        finished_at=run.clock.now(),
+                    )
+                    superseded = changes.superseded
+                    run.counters["findings_superseded"] += superseded
+                run.emit(
+                    "rule.suspended",
+                    {
+                        "rule_id": descriptor.id,
+                        "rule_version": descriptor.version,
+                        "reason": descriptor.suspended_reason,
+                        "findings_superseded": superseded,
+                        "dry_run": dry_run,
+                    },
+                )
+                step.skip(descriptor.suspended_reason)
+                run.counters["rules_suspended"] += 1
+                run.counters["rules_skipped"] += 1
+                continue
             missing = [
                 name for name in descriptor.needs if not repository.has_relation(name)
             ]
@@ -54,10 +84,17 @@ def check(
             findings: dict[str, Finding] = {}
             candidates = repository.candidates(rule.sql)
             evaluated = 0
+            uncovered: Counter[str] = Counter()
+            coverage_rule = rule if isinstance(rule, CoverageAwareRule) else None
             grouped: dict[tuple[int, int | None, str | None], list[RuleResult]] = {}
             try:
                 for row in candidates:
                     evaluated += 1
+                    if coverage_rule is not None:
+                        reason = coverage_rule.coverage_reason(row)
+                        if reason is not None:
+                            uncovered[reason] += 1
+                            continue
                     result = rule.evaluate(row)
                     if result is None:
                         continue
@@ -169,6 +206,26 @@ def check(
                 close = getattr(candidates, "close", None)
                 if callable(close):
                     close()
+            if uncovered:
+                run.counters["candidates_evaluated"] += evaluated
+                run.counters["candidates_without_coverage"] += sum(uncovered.values())
+                run.emit(
+                    "rule.coverage_missing",
+                    {
+                        "rule_id": descriptor.id,
+                        "rule_version": descriptor.version,
+                        "candidates": evaluated,
+                        "unassessed": sum(uncovered.values()),
+                        "reasons": dict(uncovered),
+                        "dry_run": dry_run,
+                    },
+                )
+                step.skip(
+                    "Cobertura incompleta; achados anteriores preservados. "
+                    + "; ".join(uncovered)
+                )
+                run.counters["rules_skipped"] += 1
+                continue
             if not dry_run:
                 changes = repository.publish_findings(
                     descriptor.id,

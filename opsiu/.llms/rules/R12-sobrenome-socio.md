@@ -1,6 +1,6 @@
 ---
 id: R12
-version: "3"
+version: "4"
 severidade: revisar
 fundamento: "bens ou serviços adquiridos de empresa ou entidade da qual o deputado ou parente até o terceiro grau ou servidor da Câmara seja proprietário ou detentor de qualquer participação;"
 ---
@@ -23,10 +23,37 @@ identifica a empresa; o nome do sócio não deve ser confundido com a razão soc
 
 ## Campos e lógica determinística
 
-Usar as despesas de `despesas_current` com CNPJ numérico de quatorze dígitos e
-o quadro societário correspondente à raiz de oito dígitos. Considerar somente
-sócios classificados pela Receita como pessoa física, identificador `2`.
-Sócios pessoas jurídicas ou estrangeiros não entram nesta heurística.
+Usar as despesas de `despesas_current` com CNPJ numérico de quatorze dígitos,
+sem repetição de um único dígito e com ambos os dígitos verificadores válidos.
+Validar antes de consultar a raiz de oito dígitos e exigir cobertura da Receita.
+Um identificador provisório ou com dígito inválido não identifica uma empresa:
+não completar zeros, corrigir dígitos ou associar sua raiz ao quadro societário
+de outra empresa. A validação de formato não comprova situação cadastral ativa.
+O importador atual trata somente CNPJs numéricos; outros formatos não entram
+neste cruzamento.
+
+Considerar somente pessoas físicas, identificador Receita `2`, com uma
+qualificação explícita de sócio, titular ou empresário. O quadro da Receita
+também contém administradores sem participação societária. Os códigos `05`
+(administrador), `08` (conselheiro), `10` (diretor) e `16` (presidente), por
+exemplo, não bastam para este indício. Procuradores, fundadores, qualificações
+ausentes e códigos desconhecidos também não são tratados como proprietários.
+
+A lista abaixo é uma política conservadora baseada na
+[tabela de qualificações da Receita](https://www38.receita.fazenda.gov.br/cadsincnac/jsp/coleta/ajuda/topicos/Tabela_III_-_Qualificacao.htm).
+Ela aceita as qualificações societárias e de titularidade nela identificadas,
+inclusive sócio-administrador, sócio sem capital e titular menor ou residente
+no exterior. O filtro de pessoa física continua obrigatório: não confundir
+essas qualificações com o identificador `3`, de sócio estrangeiro.
+
+<!-- ownership-qualifications:start -->
+```json
+[
+  "22", "23", "24", "25", "26", "28", "29", "30", "31", "38", "47", "49",
+  "50", "52", "53", "55", "56", "58", "65", "66", "67", "68", "74"
+]
+```
+<!-- ownership-qualifications:end -->
 
 Excluir contas institucionais de liderança identificadas por `cpf IS NULL` e
 `sigla_uf = NA`, para não tratar seu nome como sobrenome de parlamentar.
@@ -35,9 +62,11 @@ Parlamentares com CPF ausente e UF válida continuam elegíveis.
 Normalizar os nomes com a função compartilhada que remove acentos, uniformiza
 maiúsculas e separadores. Excluir o primeiro token de cada nome. Comparar
 apenas os tokens restantes com pelo menos quatro letras e fora da lista abaixo.
-Uma coincidência elegível entre o parlamentar e um sócio pessoa física produz
-um achado para revisão do documento. Não reconstruir CPF mascarado nem inferir
-parentesco a partir da grafia coincidente.
+Uma coincidência elegível entre o parlamentar e uma pessoa física com
+qualificação societária admitida produz um achado para revisão do documento.
+Quando o sobrenome aparece apenas em administrador ou diretor, não produzir
+achado; quando há também sócio correspondente, preservar somente sua evidência.
+Não reconstruir CPF mascarado nem inferir parentesco a partir da grafia coincidente.
 
 O valor do achado é `valor_liquido` do documento, em centavos exatos. Ele
 representa o gasto sinalizado para revisão, não uma perda comprovada ou um valor
@@ -46,8 +75,10 @@ automaticamente recuperável.
 ## Cobertura da fonte
 
 A regra exige cobertura da importação Receita corrente para todas as raízes de
-CNPJ numérico das despesas que examina. Se as relações exigidas não existirem,
-o executor ignora a regra com motivo registrado. Se existirem, mas faltar uma
+CNPJ numérico válido das despesas que examina. Identificadores inválidos são
+excluídos antes dessa exigência e não geram falha por falta de cobertura.
+Se as relações exigidas não existirem, o executor ignora a regra com motivo
+registrado. Se existirem, mas faltar uma
 importação bem-sucedida ou a raiz não estiver no conjunto filtrado, a regra
 falha sem publicar resultados parciais. Reimportar ou reproduzir o snapshot
 após a entrada de novas raízes na base de despesas.
@@ -143,17 +174,22 @@ HENRIQUE VIEIRA` e `BEATRIZ HENRIQUE VIEIRA` continuam compartilhando `VIEIRA`,
 mas a evidência não inclui `HENRIQUE`. Não ampliar a exclusão automaticamente
 para nomes semelhantes ou termos não aprovados.
 
-A versão 3 cria novas chaves de achado em uma nova execução de `check`. Achados,
-pareceres e decisões da versão 2 são preservados; rejeições humanas anteriores
-não são copiadas automaticamente para evidências da nova versão. Assim, um
-achado anteriormente rejeitado em lote por `HENRIQUE` pode reaparecer para
-revisão se também houver correspondência válida em `VIEIRA`.
+A versão 4 cria novas chaves de achado em uma nova execução de `check`. Achados,
+pareceres e decisões das versões anteriores são preservados; rejeições humanas
+anteriores não são copiadas automaticamente para evidências da nova versão. Assim, um
+achado anteriormente rejeitado em lote por `HENRIQUE` só pode reaparecer para
+revisão se também houver correspondência válida em `VIEIRA`, CNPJ válido e
+qualificação societária admitida. Coincidência remanescente apenas com um
+administrador não reaparece por esse motivo.
 
 ## Exemplos de correspondência
 
 Com nomes sintéticos, `ANA FIGUEIREDO` e a sócia pessoa física
-`BEATRIZ FIGUEIREDO` compartilham o token elegível `FIGUEIREDO` e geram indício.
-Os mesmos nomes com sócia classificada como pessoa jurídica não disparam.
+`BEATRIZ FIGUEIREDO`, qualificação `49`, compartilham o token elegível
+`FIGUEIREDO` e geram indício quando o fornecedor tem CNPJ válido e coberto.
+Os mesmos nomes com pessoa jurídica, diretora (`10`) ou CNPJ inválido não
+disparam. A ausência de achado não demonstra que o diretor não possua ações:
+significa que a qualificação cadastral fornecida não comprova participação.
 
 `ANA SILVA` e `BEATRIZ SILVA` não disparam porque `SILVA` está na lista de
 exclusão. Coincidência apenas no primeiro nome, token de três letras ou termo
@@ -169,8 +205,8 @@ Preservar os achados e as revisões anteriores; não substituir silenciosamente
 o snapshot que fundamentou o indício.
 
 O agente deve conferir os nomes, os tokens efetivamente compartilhados, o tipo
-do sócio, a raiz do fornecedor e a origem cadastral. Deve distinguir hipótese
-de parentesco de vínculo documental comprovado, apontar a ausência de histórico
+e a qualificação do sócio, o CNPJ do fornecedor e a origem cadastral. Deve distinguir
+hipótese de parentesco de vínculo documental comprovado, apontar a ausência de histórico
 societário e indicar qual evidência adicional seria necessária para esclarecer
 o vínculo na data da despesa. Não inventar relações familiares, CPFs ou datas.
 

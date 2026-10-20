@@ -2,6 +2,10 @@
 
 Status: Accepted, with a documented historical-data limitation.
 
+R01 version 3 and R05 version 2 now use researched schedules under
+[ADR 0014](0014-researched-policies-and-rule-suspension.md), superseding this
+assumption for those rules. Legacy rows and other policy limitations remain.
+
 ## Context
 
 The product plan audits 2023–2026 using the amounts recorded in

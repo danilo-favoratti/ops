@@ -1,77 +1,75 @@
 ---
 id: R01
-version: "2"
+version: "3"
 severidade: alta
-fundamento: "locação ou fretamento de veículos automotores (limite inacumulável de R$ 12.713,00 mensais), permitida contratação de seguro;"
+fundamento: "Locação de veículos: limite mensal inacumulável, com atualização pelo IPCA determinada pelo Ato da Mesa 196/2025 e previsão adicional do Ato da Mesa 246/2026; aplicar a política da competência."
 ---
 
 # R01 — Locação de veículos automotores
 
-## Fundamento
+## Fundamento e vigência
 
-A fonte é [cota-parlamentar.md](../../cota-parlamentar.md), na seção de despesas
-permitidas. O trecho literal está no campo `fundamento` do cabeçalho. O limite
-mensal inicial é R$ 12.713,00, inacumulável: saldo de outro mês não aumenta
-este teto.
+O [Ato da Mesa 183/2017](https://www2.camara.leg.br/legin/int/atomes/2017/atodamesa-183-16-maio-2017-784814-publicacaooriginal-152684-cd-mesa.html)
+fixou o limite mensal em R$ 12.713,00, vigente desde 17/05/2017.
+O [Ato da Mesa 196/2025, art. 4º](https://www2.camara.leg.br/legin/int/atomes/2025/atodamesa-196-27-maio-2025-797512-publicacaooriginal-175496-cd-mesa.html)
+determinou sua atualização pelo IPCA de maio de 2017 a fevereiro de 2025.
+A publicação ocorreu em 28/05/2025.
 
-A vigência inicial em `2023-01-01` é uma hipótese operacional, descrita no
-[ADR 0008](../../docs/adr/0008-policy-effective-date-assumption.md), e não uma
-reconstrução das datas históricas de alteração dos valores.
+O cálculo usa o [número-índice oficial do IBGE](https://apisidra.ibge.gov.br/values/t/1737/n1/all/v/2266/p/201704,202502):
+`12713.00 × 7205.03 / 4828.44`, arredondado para centavos com
+`ROUND_HALF_UP`, resulta em **R$ 18.970,42**. Abril de 2017 é o denominador
+porque a variação inclui maio. O arredondamento é uma convenção computacional
+explícita; diferenças de centavos continuam visíveis.
 
-## Campos
+A versão 3 contém períodos pesquisados exclusivamente para 2023–2026:
 
-Usar `despesas_current`, que contém a versão corrente de cada arquivo anual:
-`numero_deputado_id`, `ano`, `mes`, `numero_sub_cota`, `valor_liquido` e
-`id_documento`. A categoria é `120`, correspondente a `LOCAÇÃO OU FRETAMENTO DE VEÍCULOS
-AUTOMOTORES`.
-O limite vem de `caps`, pelos campos `category_code`, `limit` e `valid_from`.
+- Janeiro de 2023 a abril de 2025: R$ 12.713,00.
+- Maio de 2025: mês de transição; diferenças para R$ 12.713,00 recebem
+  `revisar`, com R$ 18.970,42 registrado como novo limite possível.
+- Junho de 2025 a fevereiro de 2026: R$ 18.970,42.
+- Março a dezembro de 2026: referência básica de R$ 18.970,42; diferenças
+  recebem `revisar`, porque o
+  [Ato da Mesa 246/2026](https://www2.camara.leg.br/legin/int/atomes/2026/atodamesa-246-2-marco-2026-798777-publicacaooriginal-178340-cd-mesa.html),
+  publicado em 03/03/2026, introduziu previsão adicional vinculada ao art. 2º,
+  §§ 3º e 5º. O conjunto de dados não informa a autorização nem o saldo
+  individual aplicável. Março também é mês de transição.
 
-## Lógica determinística
+Não aplicar o limite antigo como excesso comprovado em meses de transição.
+Não presumir autorização individual para o adicional de 2026. Um achado de
+revisão informa diferença para uma referência, sem certificar irregularidade.
 
-Agrupar os registros da categoria por parlamentar, ano e mês e somar
-`valor_liquido`. Selecionar a política da categoria com a maior `valid_from`
-que não ultrapasse o primeiro dia da competência. Ausência de política vigente
-é uma falha registrada da regra; o grupo não pode desaparecer silenciosamente.
+## Campos e lógica determinística
 
-Emitir um achado somente quando `total > limite`. A igualdade não dispara.
-O valor do achado é `total - limite`, em centavos exatos. Associar o achado ao
-maior `id_documento` do grupo e guardar a lista ordenada de todos os documentos.
-Não aplicar saldo acumulado ou margem percentual a este limite mensal.
+Agrupar `despesas_current` por `numero_deputado_id`, `ano`, `mes` e categoria
+`120` (`LOCAÇÃO OU FRETAMENTO DE VEÍCULOS AUTOMOTORES`), somando
+`valor_liquido`, inclusive linhas negativas. Comparar com o período pesquisado
+da competência. A igualdade não dispara; a diferença positiva forma o valor
+sinalizado, sem representar automaticamente prejuízo ou restituição devida.
 
-A evidência contém `total`, `limite`, `documentos`, `numero_deputado_id`, `ano`,
-`mes`, `numero_sub_cota` e `vigente_desde`. A proveniência liga o documento
-associado ao arquivo, registro, execução, etapa e versão da regra.
+O catálogo imutável de `domain/researched_caps.py` é independente das linhas
+históricas de `caps`. A versão 3 não reescreve essas linhas nem aplica a hipótese
+antiga do ADR 0008. Competências fora da cobertura são informadas como lacunas;
+a execução não publica um resultado completo nem supersede achados anteriores
+da regra enquanto houver lacuna.
 
-## Exemplos sintéticos
+Associar ao maior `id_documento`, preservar todos os documentos e incluir:
+total, limite, parlamentar, competência, categoria, vigência legal,
+intervalo pesquisado, fontes, fórmula, arredondamento e limitações.
+Quando um documento aparece em vários grupos, preservar `ocorrencias` e
+`registros_origem`. O valor combinado soma as diferenças dessas ocorrências.
 
-No arquivo de testes `Ano-2099.json`, o parlamentar `101` tem dois documentos
-por competência nesta categoria:
+## Exemplos
 
-- Janeiro: soma R$ 12.713,01; gera um achado de R$ 0,01,
-  associado ao documento `209900002`.
-- Fevereiro: soma R$ 12.712,99; não gera achado.
-- Março: soma R$ 12.713,00; igualdade com o limite, sem achado.
-
-Cada documento isolado está abaixo do teto; o exemplo positivo depende da soma.
-Os valores foram criados para testes, sem afirmação sobre despesas reais.
+- Abril de 2025, R$ 12.713,01: diferença de R$ 0,01.
+- Junho de 2025, R$ 18.970,42: nenhum achado; R$ 18.970,43: R$ 0,01.
+- Maio de 2025, R$ 18.000,00: revisão de transição, sem afirmar excesso.
+- Abril de 2026, R$ 19.000,00: revisão da autorização e do adicional.
 
 ## O que o agente deve verificar
 
-Confira a identificação do veículo, o período contratado, os valores e eventuais itens
-de seguro descritos nos comprovantes. Registre separadamente dúvidas de classificação ou
-divergências entre contrato e nota, citando o documento.
-
-Confira a correspondência entre os documentos citados e a evidência agregada,
-respeitando valores líquidos e glosas. Registre limitações de leitura ou ausência
-de comprovantes. O agente produz uma anotação fundamentada; a decisão de disparar
-a regra pertence ao código determinístico, e a aprovação final cabe à revisão
-humana.
-
-## Registros contábeis e identidade (versão 2)
-
-Um documento pode ocorrer em várias linhas da fonte. Manter um achado por
-regra, versão e documento, preservando todas as ocorrências avaliadas em
-`ocorrencias` e os arquivos e hashes em `registros_origem` quando houver
-multiplicidade. O valor agregado soma os valores dessas ocorrências; não
-representa automaticamente um valor recuperável. A proveniência principal
-é uma âncora determinística ordenada por arquivo e hash do registro.
+Conferir veículos, período contratado, seguros, valores líquidos e glosas.
+Nos meses de transição, verificar os documentos e a aplicação temporal da norma.
+A partir de março de 2026, buscar a autorização e o saldo do adicional.
+Registrar restituições como recuperação, preservando o contexto do gasto.
+Não inferir prejuízo a partir da diferença calculada.
+O agente apenas anota; a regra é determinística e a decisão final é humana.

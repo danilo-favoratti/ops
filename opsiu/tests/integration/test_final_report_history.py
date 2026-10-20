@@ -22,7 +22,10 @@ from opsiu.application.ports import JsonValue, ReviewFilters
 from opsiu.application.review import ReviewService
 from opsiu.application.runs import Run
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("synthetic_cap_policies"),
+]
 FIXTURE = Path(__file__).parents[1] / "fixtures/mini_dataset/Ano-2099.json"
 
 
@@ -52,7 +55,7 @@ def workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         encoding="utf-8",
     )
     invoke("ingest")
-    invoke("check", "--regras", "R01,R02,R08,R09,R10")
+    invoke("check", "--regras", "R01,R02,R03,R08,R09")
     invoke("explain", "--regras", "R08")
     return tmp_path
 
@@ -110,7 +113,7 @@ def test_final_uses_latest_approval_original_provenance_and_pareceres(
             rule: review.list_pending(ReviewFilters(rule_id=rule))[
                 0
             ].record.finding.finding_key
-            for rule in ("R01", "R02", "R08", "R09", "R10")
+            for rule in ("R01", "R02", "R03", "R08", "R09")
         }
         review.decide(keys["R01"], "aprovado", "Aprovação atual.")
         review.decide(keys["R02"], "aprovado", "Aprovação antiga.")
@@ -119,8 +122,8 @@ def test_final_uses_latest_approval_original_provenance_and_pareceres(
             keys["R08"], "aprovado", "Conferido <script>alert(1)</script>."
         )
         review.decide(keys["R09"], "aprovado", "Documento comparado.")
-        review.decide(keys["R10"], "aprovado", "Aprovação antiga.")
-        review.decide(keys["R10"], "rejeitado", "Rejeição atual.")
+        review.decide(keys["R03"], "aprovado", "Aprovação antiga.")
+        review.decide(keys["R03"], "rejeitado", "Rejeição atual.")
         original = review.get_finding(keys["R08"])
     # Later import must not relabel the source identity of the approved finding.
     data = json.loads(source.read_text())
@@ -157,7 +160,7 @@ def test_final_uses_latest_approval_original_provenance_and_pareceres(
     assert len(pages) == 3
     combined = "\n".join(path.read_text() for path in pages)
     assert all(key in combined for key in (keys["R01"], keys["R08"], keys["R09"]))
-    assert all(keys[rule] not in combined for rule in ("R02", "R10"))
+    assert all(keys[rule] not in combined for rule in ("R02", "R03"))
     assert "Nome posterior" not in combined
     assert "<script>" not in combined
     assert "simulad" in combined.lower()

@@ -1,19 +1,21 @@
 ---
 id: R13
-version: "2"
+version: "3"
 severidade: revisar
 fundamento: "aquisição de gêneros alimentícios; locação de veículo automotor, prestada por pessoa jurídica especializada, que contemple o serviço de motorista;"
 ---
 
-# R13 — Indício de fornecedor incompatível com a categoria
+# R13 — Atividade do fornecedor exige conferência da nota
 
 ## Fundamento e alcance
 
 A [fonte](../../cota-parlamentar.md) contém duas vedações distintas: aquisição
 de gêneros alimentícios e locação de veículo automotor com serviço de motorista.
-O fundamento acima reúne esses dois itens. Esta regra procura indícios no
-cadastro do fornecedor; seu enquadramento comercial não comprova os produtos
-ou serviços efetivamente cobrados na nota.
+O fundamento acima reúne esses dois itens. Esta regra gera pistas cadastrais
+para priorizar a conferência de notas e contratos. O enquadramento comercial
+do fornecedor não comprova os produtos ou serviços efetivamente cobrados:
+uma empresa pode exercer mais de uma atividade. O achado não afirma que a
+despesa é vedada, nem permite concluir que houve prejuízo.
 
 A categoria `13` representa fornecimento de alimentação. A categoria `120`
 representa locação ou fretamento de veículos automotores. Esta versão limita
@@ -28,30 +30,32 @@ oito dígitos da empresa. O CNAE principal pertence ao estabelecimento com o
 CNPJ integral de quatorze dígitos do favorecido: não usar o CNAE de outra
 filial apenas por compartilhar a raiz.
 
-Comparar a razão social da Receita, normalizada pela função compartilhada.
-O texto livre do fornecedor na despesa não substitui a razão social para esta
-regra. O snapshot disponível não demonstra qual era o CNAE ou a razão social
+Antes de exigir cobertura da Receita, validar os dígitos verificadores do
+CNPJ numérico e excluir identificadores de um único dígito repetido.
+Um código de preenchimento, incompleto ou inválido não identifica um
+estabelecimento, mesmo quando a raiz coincide com uma empresa real.
+Esta versão não interpreta identificadores alfanuméricos.
+
+A razão social da Receita e o texto livre do fornecedor na despesa são apenas
+contexto. Nenhuma palavra ou expressão nesses nomes dispara a regra.
+O snapshot disponível não demonstra qual era o CNAE ou a razão social
 na data da despesa; essa limitação deve acompanhar o indício.
 
 ## Lógica determinística
 
 Na categoria `13`, produzir indício quando o CNAE principal for um destes:
-`4711301`, `4711302` ou `4712100`; ou quando a razão social contiver um dos
-tokens inteiros `SUPERMERCADO`, `SUPERMERCADOS`, `HIPERMERCADO`,
-`HIPERMERCADOS`, `MINIMERCADO`, `MINIMERCADOS`, `MERCEARIA` ou `MERCEARIAS`.
-Não procurar essas palavras como fragmentos dentro de outro token. O token
-genérico `MERCADO` não é gatilho desta versão.
+`4711301`, `4711302` ou `4712100`.
 
-Na categoria `120`, produzir indício quando o CNAE principal for `4923002`;
-ou quando a razão social contiver a expressão normalizada `COM MOTORISTA`,
-`SERVICO DE MOTORISTA` ou `SERVICOS DE MOTORISTA`. A expressão
-`SEM MOTORISTA`, por si só, não é um gatilho. A simples presença da palavra
-`MOTORISTA` também não basta.
+Na categoria `120`, produzir indício quando o CNAE principal for `4923002`.
+Uma atividade cadastrada de locação com motorista não demonstra que a
+locação analisada incluiu motorista. Confirmar essa condição na nota ou no
+contrato antes de afirmar incompatibilidade.
 
 Uma correspondência gera um achado por documento com severidade `revisar`.
-Outras categorias e fornecedores sem os indicadores explícitos não disparam
-esta regra. Não tratar um CNAE, uma palavra na razão social ou a falta de
-correspondência como prova definitiva do conteúdo da nota.
+Outras categorias e fornecedores sem esses CNAEs não disparam esta regra.
+Não tratar um CNAE ou a falta de correspondência como prova do conteúdo da nota.
+A ausência do CNAE principal não pode ser preenchida por inferência a partir
+do nome da empresa. Esta versão não importa atividades secundárias.
 
 O valor do achado é o `valor_liquido` do documento, em centavos exatos. Ele
 representa o gasto sinalizado, não uma conclusão de prejuízo ou de restituição.
@@ -59,7 +63,7 @@ representa o gasto sinalizado, não uma conclusão de prejuízo ou de restituiç
 ## Cobertura da fonte e evidência
 
 Verificar a cobertura da importação Receita corrente para as raízes dos
-favorecidos com CNPJ numérico nas categorias `13` e `120`. A ausência de uma
+favorecidos com CNPJ numérico válido nas categorias `13` e `120`. A ausência de uma
 relação exigida causa regra ignorada com motivo registrado. Se as relações
 existirem, mas faltar importação bem-sucedida ou cobertura da raiz, a regra
 falha sem publicar resultados parciais. Uma raiz solicitada e pesquisada nos
@@ -67,36 +71,37 @@ arquivos fornecidos pode não ter cadastro correspondente; essa ausência não �
 prova de irregularidade e, sem outro indicador, não gera achado.
 
 Registrar `cnpj`, `raiz_cnpj`, `numero_sub_cota`, `fornecedor_na_despesa`,
-`razao_social`, `natureza_juridica`, `cnae_principal`, `motivos` e `expressoes`.
-O fornecedor escrito na despesa é apenas contexto; a busca de expressões usa
-a razão social da Receita. Os motivos possíveis são
-`cnae_comercio_alimenticio`, `cnae_locacao_com_motorista` e
-`expressao_na_razao_social`.
+`razao_social`, `natureza_juridica`, `cnae_principal` e `motivos`.
+Os motivos possíveis são `cnae_comercio_alimenticio` e
+`cnae_locacao_com_motorista`.
 
 `origem_empresa` e `origem_estabelecimento` contêm `source_file`,
 `source_sha256`, `source_member` e `source_record_number`, ou são nulos quando
-o respectivo registro não existe. Uma expressão na razão social pode gerar
-indício sem CNAE disponível; um CNAE do estabelecimento pode gerar indício
-sem razão social disponível. Registrar essas ausências sem completá-las por
-inferência.
+o respectivo registro não existe. Um CNAE do estabelecimento pode gerar
+indício sem razão social disponível. Registrar essas ausências sem
+completá-las por inferência.
 
 Registrar também `snapshot_id`, `snapshot_sha256`,
-`revisao_humana_obrigatoria = true`, `conteudo_da_nota_comprovado = false` e
-`cadastro_na_data_despesa = false`. A cobertura da raiz se refere aos arquivos
-fornecidos, sem certificar a completude de todas as partições nacionais.
+`revisao_humana_obrigatoria = true`, `indicio_apenas_cadastral = true`,
+`conteudo_da_nota_comprovado = false`, `cadastro_na_data_despesa = false` e
+`limitacao`, explicando a necessidade de conferir o documento da transação.
+A cobertura da raiz se refere aos arquivos fornecidos, sem certificar a
+completude de todas as partições nacionais.
 
 ## Exemplos sintéticos
 
-Na categoria `13`, o estabelecimento com CNAE `4711301` gera indício, assim
-como a razão social fictícia `SUPERMERCADO EXEMPLO LTDA`. A razão social
-`MERCADO CULTURAL EXEMPLO LTDA`, sem CNAE listado, não dispara pelo token
-`MERCADO`. Um CNAE listado em outra filial não satisfaz a correspondência do
-estabelecimento favorecido.
+Na categoria `13`, o estabelecimento com CNAE `4711301` gera indício.
+Um restaurante com CNAE `5611201` e razão social fictícia
+`SUPERMERCADO EXEMPLO LTDA` não dispara, assim como um fornecedor sem CNAE
+disponível com esse nome. Um CNAE listado em outra filial não satisfaz a
+correspondência do estabelecimento favorecido.
 
-Na categoria `120`, o CNAE `4923002` ou a razão social fictícia
-`LOCACAO COM MOTORISTA EXEMPLO LTDA` gera indício. `LOCACAO SEM MOTORISTA
-EXEMPLO LTDA`, sem CNAE listado, não dispara pela expressão negativa. Um
-fornecedor com esses indicadores em outra categoria não dispara esta regra.
+Na categoria `120`, o CNAE `4923002` gera pista para conferir a nota.
+A razão social fictícia `LOCACAO COM MOTORISTA EXEMPLO LTDA`, sem esse CNAE,
+não dispara. `LOCACAO SEM MOTORISTA EXEMPLO LTDA` tampouco é gatilho por nome;
+se o estabelecimento tiver o CNAE `4923002`, o indício cadastral permanece,
+com a limitação explícita de que o serviço contratado ainda não foi comprovado.
+Um fornecedor com esses CNAEs em outra categoria não dispara esta regra.
 
 ## Revisões de fonte e o que o agente deve verificar
 

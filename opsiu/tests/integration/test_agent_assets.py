@@ -54,7 +54,7 @@ assert directory.is_relative_to(Path(sys.argv[1]).resolve())
 names = ('explicar-achado', 'revisar-nota', 'consolidar-deputado')
 prompts = {name: load_prompt(name) for name in names}
 for name, prompt in prompts.items():
-    assert prompt.version == ('1' if name == 'consolidar-deputado' else '2')
+    assert prompt.version == ('3' if name == 'explicar-achado' else '2')
     assert prompt.text.strip()
     assert prompt.sha256 == hashlib.sha256(
         (directory / 'tasks' / (name + '.md')).read_bytes()

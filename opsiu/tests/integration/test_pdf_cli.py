@@ -233,7 +233,7 @@ def test_latest_successful_rule_selection_does_not_sample_older_unselected_rules
     workspace: Path,
     pdf_server: PdfServer,
 ) -> None:
-    invoke("check", "--regras", "R10")
+    invoke("check", "--regras", "R02")
     invoke("fetch", "pdf", "--sample")
     assert pdf_server.requests == []
     assert rows(workspace) == []

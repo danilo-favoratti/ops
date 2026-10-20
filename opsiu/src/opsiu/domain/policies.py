@@ -84,21 +84,38 @@ R12_EXCLUDED_GIVEN_NAMES = frozenset(
         "VICTOR",
     }
 )
-GROCERY_CNAES = frozenset({"4711301", "4711302", "4712100"})
-GROCERY_NAME_TOKENS = frozenset(
+# Receita's QSA includes managers who are not owners. Only explicit
+# partner/holder qualifications establish participation for this heuristic.
+# Source: Receita's Tabela III - Qualificação, linked in the R12 rule document.
+R12_OWNERSHIP_QUALIFICATIONS = frozenset(
     {
-        "SUPERMERCADO",
-        "SUPERMERCADOS",
-        "HIPERMERCADO",
-        "HIPERMERCADOS",
-        "MINIMERCADO",
-        "MINIMERCADOS",
-        "MERCEARIA",
-        "MERCEARIAS",
+        "22",  # Sócio.
+        "23",  # Sócio capitalista.
+        "24",  # Sócio comanditado.
+        "25",  # Sócio comanditário.
+        "26",  # Sócio de indústria.
+        "28",  # Sócio-gerente.
+        "29",  # Sócio incapaz ou relativamente incapaz.
+        "30",  # Sócio menor.
+        "31",  # Sócio ostensivo.
+        "38",  # Sócio pessoa física residente no exterior.
+        "47",  # Sócio pessoa física residente no Brasil.
+        "49",  # Sócio-administrador.
+        "50",  # Empresário.
+        "52",  # Sócio com capital.
+        "53",  # Sócio sem capital.
+        "55",  # Sócio comanditado residente no exterior.
+        "56",  # Sócio comanditário pessoa física residente no exterior.
+        "58",  # Sócio comanditário incapaz.
+        "65",  # Titular pessoa física residente no Brasil.
+        "66",  # Titular pessoa física residente no exterior.
+        "67",  # Titular pessoa física incapaz ou relativamente incapaz.
+        "68",  # Titular pessoa física menor.
+        "74",  # Sócio-administrador residente no exterior.
     }
 )
+GROCERY_CNAES = frozenset({"4711301", "4711302", "4712100"})
 DRIVER_CNAES = frozenset({"4923002"})
-DRIVER_NAME_PHRASES = ("COM MOTORISTA", "SERVICO DE MOTORISTA", "SERVICOS DE MOTORISTA")
 
 # numeroSubCota/descricao pairs verified in the 2023 and 2026 source files:
 # 120: LOCAÇÃO OU FRETAMENTO DE VEÍCULOS AUTOMOTORES

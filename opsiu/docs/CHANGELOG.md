@@ -7,6 +7,37 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Fixed
 
+- R01 version 3 and R05 version 2 use researched, dated cap schedules for
+  2023–2026 instead of applying the initial policy assumptions to every year.
+  Evidence records the formula, sources, effective dates and cent rounding.
+  Transition months and uncertain vehicle-rental additions require review.
+  A candidate outside researched coverage skips the entire rule publication,
+  preserving its previous findings. See
+  [ADR 0014](adr/0014-researched-policies-and-rule-suspension.md).
+- R10 version 2 suspends the issue-to-competence proxy for the submission
+  deadline; R14 version 2 suspends comparison of pooled leadership spending with
+  one individual allowance. Required submission/supply dates and collective
+  entitlement histories are absent. A normal check explicitly supersedes the
+  old findings without deleting evidence or creating human rejection decisions.
+  Dry runs and temporary source gaps preserve existing findings.
+- R12 version 4 validates numeric CNPJ check digits before supplier matching and
+  requires an explicit ownership/participation qualification. Managers,
+  directors, founder-only entries and unknown roles no longer establish the
+  ownership premise. Reviewer-selected name exclusions remain in effect.
+- R13 version 3 validates numeric CNPJs and removes company-name-only triggers.
+  Selected principal CNAEs remain review leads, with evidence explicitly
+  distinguishing registered activity from the actual invoice or contract.
+  Both supplier rules preserve accounting adjustments and source provenance.
+- Synthetic evaluations now use researched 2024 cap periods and current rule
+  identities, excluding suspended rules. The 50-case corpus retains separate
+  output-validity and agreement metrics; the constant scripted recommendation
+  baseline is now 44%.
+- Prompt version 3 for [explicar-achado](../.llms/tasks/explicar-achado.md) and
+  version 2 for [consolidar-deputado](../.llms/tasks/consolidar-deputado.md)
+  distinguish dated caps, withdrawn historical proxies and narrower supplier
+  criteria. Input/output schemas are unchanged; agents still only annotate.
+  Existing opinions and summaries retain their original prompt versions.
+
 - Receipt comparison retains raw PDF captures when encryption or malformed PDF
   structure prevents text extraction. These captures are explicitly marked as
   lacking extracted text; binary comparison does not require readable text.

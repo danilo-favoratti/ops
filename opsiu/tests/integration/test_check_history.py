@@ -15,7 +15,10 @@ from opsiu.domain.rules import registry
 from opsiu.domain.rules.base import RuleDescriptor, RuleResult
 from opsiu.interfaces.cli import app
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("synthetic_cap_policies"),
+]
 
 
 class HistoryRule:
@@ -229,7 +232,7 @@ def test_real_cap_and_duplicate_rules_accept_accounting_rows(
         "SELECT rule_id, rule_version, id_documento, amount "
         "FROM findings ORDER BY rule_id,id_documento",
     ) == [
-        ("R01", "2", 2, Decimal("13287.00")),
+        ("R01", "3", 2, Decimal("13287.00")),
         ("R09", "3", 1, Decimal("13000.00")),
         ("R09", "3", 2, Decimal("13000.00")),
     ]

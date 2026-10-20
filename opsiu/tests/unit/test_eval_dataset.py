@@ -4,6 +4,7 @@ import json
 import os
 from collections import Counter
 from dataclasses import FrozenInstanceError
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from typer.testing import CliRunner
 from evals.dataset import (
     DEPUTY_ID_STRIDE,
     DOCUMENT_ID_STRIDE,
+    EVALUATION_YEAR,
     FIXTURE_PATH,
     LOCAL_RULE_IDS,
     REPLICA_COUNT,
@@ -41,8 +43,8 @@ def test_default_cases_are_frozen_diverse_and_independent_of_cwd(
     cases = load_cases()
     assert len(cases) == len({case.finding_key for case in cases}) == 50
     assert Counter(case.expected_recommendation for case in cases) == {
-        "manter": 26,
-        "revisar": 24,
+        "manter": 28,
+        "revisar": 22,
     }
     assert all(
         "Hipótese sintética sem validação humana" in case.notes for case in cases
@@ -52,7 +54,7 @@ def test_default_cases_are_frozen_diverse_and_independent_of_cwd(
 
 
 @pytest.mark.unit
-def test_replication_preserves_fixture_values_and_isolates_deputies_and_invoices() -> (
+def test_replication_adapts_supported_dates_and_isolates_deputies_and_invoices() -> (
     None
 ):
     original = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))["dados"]
@@ -64,6 +66,20 @@ def test_replication_preserves_fixture_values_and_isolates_deputies_and_invoices
     for replica in range(REPLICA_COUNT):
         for offset, row in enumerate(rows[replica * 200 : (replica + 1) * 200]):
             expected = dict(original[offset])
+            expected["ano"] = EVALUATION_YEAR
+            expected["dataEmissao"] = f"{EVALUATION_YEAR}{expected['dataEmissao'][4:]}"
+            if expected["numero"].startswith("R05-"):
+                course_values = {
+                    "R05-ACIMA-A": "4572.81",
+                    "R05-ACIMA-B": "4572.82",
+                    "R05-ABAIXO-A": "4572.80",
+                    "R05-ABAIXO-B": "4572.81",
+                    "R05-IGUAL-A": "4572.81",
+                    "R05-IGUAL-B": "4572.81",
+                }
+                expected["valorDocumento"] = expected["valorLiquido"] = course_values[
+                    expected["numero"]
+                ]
             document = int(expected["idDocumento"]) + replica * DOCUMENT_ID_STRIDE
             expected["idDocumento"] = str(document)
             expected["numeroDeputadoID"] += replica * DEPUTY_ID_STRIDE
@@ -77,6 +93,16 @@ def test_replication_preserves_fixture_values_and_isolates_deputies_and_invoices
     rows[0]["numero"] = "caller mutation"
     assert build_expense_rows()[0]["numero"] == "EVAL-1-R01-ACIMA-A"
     assert json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))["dados"] == original
+    courses = expenses[24:30]
+    assert [
+        sum((row.valor_liquido for row in courses[start : start + 2]))
+        for start in (0, 2, 4)
+    ] == [
+        Decimal("9145.63"),
+        Decimal("9145.61"),
+        Decimal("9145.62"),
+    ]
+    assert {row.competencia.ano for row in expenses} == {EVALUATION_YEAR}
 
 
 @pytest.mark.unit
@@ -149,7 +175,7 @@ def test_dataset_requires_valid_utf8_and_reports_invalid_line(tmp_path: Path) ->
 
 
 @pytest.mark.integration
-def test_real_rules_reproduce_sixty_findings_and_all_fifty_selected_keys(
+def test_real_rules_reproduce_fifty_two_findings_and_all_fifty_selected_keys(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     for name in os.environ:
@@ -158,13 +184,13 @@ def test_real_rules_reproduce_sixty_findings_and_all_fifty_selected_keys(
     monkeypatch.setenv("AGENTRIG_RUN_LIVE", "0")
     monkeypatch.chdir(tmp_path)
     (tmp_path / "input").mkdir()
-    (tmp_path / "input/Ano-2099.json").write_text(
+    (tmp_path / f"input/Ano-{EVALUATION_YEAR}.json").write_text(
         json.dumps({"dados": build_expense_rows()}, ensure_ascii=False),
         encoding="utf-8",
     )
     (tmp_path / "opsiu.toml").write_text(
         '[paths]\ndata_dir="input"\ndb_path="db.duckdb"\nruns_dir="runs"\n'
-        "[years]\nfrom=2099\nto=2099\n",
+        f"[years]\nfrom={EVALUATION_YEAR}\nto={EVALUATION_YEAR}\n",
         encoding="utf-8",
     )
     runner = CliRunner()
@@ -177,14 +203,12 @@ def test_real_rules_reproduce_sixty_findings_and_all_fifty_selected_keys(
             "WHERE status = 'active'"
         ).fetchall()
         assert connection.execute("SELECT count(*) FROM despesas").fetchone() == (800,)
-    assert len(findings) == 60
+    assert len(findings) == 52
     assert Counter(row[1] for row in findings) == {
         **{f"R{number:02d}": 4 for number in range(1, 7)},
         "R07": 16,
         "R08": 4,
         "R09": 8,
-        "R10": 4,
-        "R14": 4,
     }
     selected = sorted(
         findings,

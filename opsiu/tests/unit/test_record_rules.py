@@ -8,6 +8,7 @@ import duckdb
 import pytest
 from duckdb import DuckDBPyConnection
 
+from opsiu.domain.errors import DomainError
 from opsiu.domain.invoice_numbers import usable_invoice_number
 from opsiu.domain.rules.base import Rule
 from opsiu.domain.rules.r08_pagamento_cpf import R08PagamentoCPF
@@ -250,7 +251,7 @@ def test_receipt_type_does_not_hide_an_otherwise_matching_duplicate(
         (2099, 7, None, None),
     ],
 )
-def test_deadline_strict_boundary_handles_leap_years_cross_years_and_missing_dates(
+def test_accounting_dates_never_substitute_missing_submission_date(
     db: DuckDBPyConnection,
     year: int,
     month: int,
@@ -264,23 +265,15 @@ def test_deadline_strict_boundary_handles_leap_years_cross_years_and_missing_dat
     )
     rule = R10PrazoReembolso()
     rows = candidates(db, rule)
-    assert bool(rows) == (days is not None and days > 90)
-    direct = rule.evaluate(
-        {
-            "id_documento": 1,
-            "data_emissao": issued,
-            "competencia": date(year, month, 1),
-            "valor_liquido": Decimal("10.00"),
-        }
-    )
-    assert (direct is not None) == bool(rows)
-    if rows:
-        result = rule.evaluate(rows[0])
-        assert result is not None and result.amount == Decimal("10.00")
-        assert result.evidence == {
-            "data_emissao": issued,
-            "competencia": date(year, month, 1),
-            "dias_decorridos": days,
-            "prazo_dias": 90,
-            "competencia_e_proxy": True,
-        }
+    assert rows == []
+    assert rule.descriptor.suspended_reason is not None
+    with pytest.raises(DomainError, match="suspended rule"):
+        rule.evaluate(
+            {
+                "id_documento": 1,
+                "data_emissao": issued,
+                "competencia": date(year, month, 1),
+                "dias_decorridos": days,
+                "valor_liquido": Decimal("10.00"),
+            }
+        )

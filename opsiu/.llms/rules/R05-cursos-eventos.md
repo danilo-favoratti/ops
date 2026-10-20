@@ -1,72 +1,68 @@
 ---
 id: R05
-version: "1"
+version: "2"
 severidade: alta
-fundamento: "participação em cursos, congressos ou eventos, realizados por instituição especializada (limite mensal inacumulável de 25% do valor da menor cota – hoje R$ 7.697,17);"
+fundamento: "Cursos e eventos especializados: limite mensal inacumulável de 25% da menor cota mensal, conforme o art. 2º, XIII, do Ato da Mesa 43/2009; aplicar a tabela vigente na competência."
 ---
 
 # R05 — Cursos, congressos e eventos
 
-## Fundamento
+## Fundamento e vigência
 
-A fonte é [cota-parlamentar.md](../../cota-parlamentar.md), na seção de despesas
-permitidas. O trecho literal está no campo `fundamento` do cabeçalho. O limite
-mensal inicial é R$ 7.697,17, inacumulável: saldo de outro mês não aumenta
-este teto.
+O [art. 2º, XIII, do Ato da Mesa 43/2009](https://www2.camara.leg.br/legin/int/atomes/2009/atodamesa-43-21-maio-2009-588364-normaatualizada-cd-mesa.html)
+estabelece um limite mensal de 25% da menor cota. A versão 2 substitui o valor
+fixo antigo por períodos pesquisados, sem usar a tabela atual retroativamente.
 
-A vigência inicial em `2023-01-01` é uma hipótese operacional, descrita no
-[ADR 0008](../../docs/adr/0008-policy-effective-date-assumption.md), e não uma
-reconstrução das datas históricas de alteração dos valores.
+- Janeiro de 2023: menor cota de R$ 30.788,66, do DF, no
+  [Ato da Mesa 76/2016](https://www2.camara.leg.br/legin/int/atomes/2016/atodamesa-76-3-fevereiro-2016-782328-publicacaooriginal-149360-cd-mesa.html),
+  vigente desde 01/03/2016. Limite calculado: R$ 7.697,17.
+- Fevereiro de 2023 a janeiro de 2026: menor cota de R$ 36.582,46, do DF,
+  no [Anexo I do Ato da Mesa 270/2023](https://www2.camara.leg.br/legin/int/atomes/2023/atodamesa-270-19-janeiro-2023-793708-anexo-cd-mesa.pdf).
+  O [ato](https://www2.camara.leg.br/legin/int/atomes/2023/atodamesa-270-19-janeiro-2023-793708-publicacaooriginal-166895-cd-mesa.html)
+  entrou em vigor em 01/02/2023. Limite: R$ 9.145,62.
+- Fevereiro de 2026: revisão de transição. O
+  [Ato da Mesa 244/2026](https://www2.camara.leg.br/legin/int/atomes/2026/atodamesa-244-20-fevereiro-2026-798720-publicacaooriginal-178157-cd-mesa.html)
+  entrou em vigor em 20/02/2026. A competência mensal não resolve a aplicação
+  temporal do reajuste. Diferenças para R$ 9.145,62 recebem `revisar`,
+  registrando também o novo limite de R$ 10.403,14.
+- Março a dezembro de 2026: menor cota publicada de R$ 41.612,55, do DF,
+  na [tabela da Câmara](https://www2.camara.leg.br/comunicacao/assessoria-de-imprensa/guia-para-jornalistas/cota-parlamentar).
+  Limite: R$ 10.403,14. O valor da cota é o publicado pela Câmara; a regra
+  não recalcula a cota a partir de uma razão de índices sem arredondamento.
 
-Embora o fundamento mencione 25% da menor cota, esta versão preserva o valor publicado
-de R$ 7.697,17. Não se recalcula o limite a partir da tabela atual de cotas por UF; a
-escolha está documentada no ADR 0008.
+O cálculo `menor cota × 0.25` usa `ROUND_HALF_UP` para centavos, convenção
+computacional explícita. Assim, `9145.615` resulta em R$ 9.145,62, sem criar
+um excesso de meio centavo. Não há margem percentual nem saldo acumulado.
 
-## Campos
+## Campos e lógica determinística
 
-Usar `despesas_current`, que contém a versão corrente de cada arquivo anual:
-`numero_deputado_id`, `ano`, `mes`, `numero_sub_cota`, `valor_liquido` e
-`id_documento`. A categoria é `137`, correspondente a `PARTICIPAÇÃO EM CURSO, PALESTRA
-OU EVENTO SIMILAR`.
-O limite vem de `caps`, pelos campos `category_code`, `limit` e `valid_from`.
+Agrupar `despesas_current` por parlamentar, ano e mês, na categoria `137`
+(`PARTICIPAÇÃO EM CURSO, PALESTRA OU EVENTO SIMILAR`). Somar `valor_liquido`,
+inclusive linhas negativas. Emitir quando a soma for maior que o limite
+pesquisado e associar ao maior `id_documento`, preservando a lista completa.
 
-## Lógica determinística
+Os períodos imutáveis estão em `domain/researched_caps.py`; as antigas linhas
+de `caps` e `cota_uf` permanecem intactas para preservar o histórico.
+Esta versão cobre 2023–2026. Fora desse intervalo, informar a lacuna e impedir
+a publicação completa da regra; não tratar ausência de política como ausência
+de excesso nem superseder achados anteriores.
 
-Agrupar os registros da categoria por parlamentar, ano e mês e somar
-`valor_liquido`. Selecionar a política da categoria com a maior `valid_from`
-que não ultrapasse o primeiro dia da competência. Ausência de política vigente
-é uma falha registrada da regra; o grupo não pode desaparecer silenciosamente.
+A evidência registra total, limite, documentos, competência, vigência legal,
+intervalo pesquisado, fórmula, arredondamento, fontes e limitação de transição.
+Documentos em vários grupos preservam todas as `ocorrencias` e os
+`registros_origem`, com uma identidade de achado por regra, versão e documento.
 
-Emitir um achado somente quando `total > limite`. A igualdade não dispara.
-O valor do achado é `total - limite`, em centavos exatos. Associar o achado ao
-maior `id_documento` do grupo e guardar a lista ordenada de todos os documentos.
-Não aplicar saldo acumulado ou margem percentual a este limite mensal.
+## Exemplos
 
-A evidência contém `total`, `limite`, `documentos`, `numero_deputado_id`, `ano`,
-`mes`, `numero_sub_cota` e `vigente_desde`. A proveniência liga o documento
-associado ao arquivo, registro, execução, etapa e versão da regra.
-
-## Exemplos sintéticos
-
-No arquivo de testes `Ano-2099.json`, o parlamentar `101` tem dois documentos
-por competência nesta categoria:
-
-- Janeiro: soma R$ 7.697,18; gera um achado de R$ 0,01,
-  associado ao documento `209900026`.
-- Fevereiro: soma R$ 7.697,16; não gera achado.
-- Março: soma R$ 7.697,17; igualdade com o limite, sem achado.
-
-Cada documento isolado está abaixo do teto; o exemplo positivo depende da soma.
-Os valores foram criados para testes, sem afirmação sobre despesas reais.
+- Janeiro de 2023, R$ 7.697,18: diferença de R$ 0,01.
+- Fevereiro de 2023, R$ 9.145,62: nenhum achado; R$ 9.145,63: R$ 0,01.
+- Fevereiro de 2026, R$ 10.000,00: revisão de transição.
+- Março de 2026, R$ 10.403,14: nenhum achado.
 
 ## O que o agente deve verificar
 
-Confira a instituição, o evento, as datas, o participante identificado e os valores de
-inscrição ou participação. Aponte informações ausentes e eventuais divergências de
-descrição, sem inferir frequência ou qualificação da instituição.
-
-Confira a correspondência entre os documentos citados e a evidência agregada,
-respeitando valores líquidos e glosas. Registre limitações de leitura ou ausência
-de comprovantes. O agente produz uma anotação fundamentada; a decisão de disparar
-a regra pertence ao código determinístico, e a aprovação final cabe à revisão
-humana.
+Conferir instituição, atividade, participação, competência, valores líquidos e
+glosas. Diferenciar evento especializado de graduação ou pós-graduação, sem
+tirar conclusão apenas pelo nome do fornecedor. Em fevereiro de 2026, conferir
+a aplicação temporal do reajuste. A diferença sinalizada não é prova de prejuízo.
+O agente anota as evidências; a decisão de revisão cabe ao revisor humano.

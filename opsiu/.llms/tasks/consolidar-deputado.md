@@ -1,5 +1,5 @@
 ---
-prompt_version: "1"
+prompt_version: "2"
 ---
 
 # Consolidar achados de um parlamentar
@@ -38,18 +38,34 @@ do parecer; a confiança do agente não mede culpa. Recomendações `manter`,
 
 Não transforme indícios em acusações. Em particular:
 
-- R07 e R14 usam controles aproximados de limites acumulados. Os valores
+- R01 versão 3 e R05 versão 2 usam limites pesquisados por competência.
+  Preserve as datas e limitações de cada evidência. Diferenças em meses de
+  transição ou sujeitas a adicional de locação não confirmado exigem revisão;
+  não são excessos comprovados. Não estenda os limites dessas versões a
+  achados históricos que usaram critérios diferentes.
+- R07 usa controle aproximado de limites acumulados. Os valores
   podem se sobrepor entre meses e não podem ser somados como perda única.
 - R09 contém possíveis duplicidades com valores sobrepostos por grupo;
   não some todos os documentos como montante recuperável.
-- R10 usa competência mensal como aproximação de apresentação, não uma
-  data efetiva de protocolo.
+- R10 versão 1 usava emissão e competência sem conhecer as datas efetivas
+  de fornecimento e apresentação. R14 versão 1 aplicava um adicional
+  individual à conta coletiva de liderança sem conhecer seu orçamento.
+  Esses critérios históricos não sustentam prazo ou excesso confirmados.
+  R10 e R14 estão suspensas na versão 2; suspensão não é decisão humana de
+  rejeição nem certificado de regularidade. Registre essa limitação se seus
+  achados ou pareceres históricos forem fornecidos.
 - R11 depende da fonte eleitoral e do método de correspondência registrado.
   Preserve a diferença entre identificação por CPF e por nome/UF.
-- R12 usa sobrenomes compartilhados como indícios; não comprova parentesco,
-  grau de parentesco ou participação na empresa na data da despesa.
-- R13 usa atividade e razão social cadastrais; não comprova o conteúdo da
-  nota nem reconstrói o cadastro histórico.
+- R12 versão 4 valida dígitos do CNPJ numérico, exige qualificação societária
+  explícita e exclui os nomes comuns e prenomes previstos na regra antes de
+  comparar sobrenomes. Cargo administrativo isolado não é propriedade.
+  Não atribua esses filtros a versões anteriores. Os indícios restantes
+  não comprovam parentesco, grau de parentesco ou participação na empresa
+  na data da despesa.
+- R13 versão 3 mantém CNAE como indício para revisão da nota, sem disparo
+  baseado somente no nome da empresa. A classificação não comprova conteúdo
+  da nota, contratação de motorista nem cadastro histórico. Não transforme
+  sinais anteriores baseados em razão social em confirmação de uma compra.
 
 Outras regras também podem sinalizar a mesma despesa. Não calcule um total
 geral de prejuízo ou restituição a partir dos valores recebidos. Quando citar

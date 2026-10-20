@@ -21,6 +21,7 @@ from duckdb import DuckDBPyConnection
 
 from evals.dataset import (
     CASES_PATH,
+    EVALUATION_YEAR,
     FIXTURE_SHA256,
     LOCAL_RULE_IDS,
     EvalCase,
@@ -337,7 +338,7 @@ def _execute(
             ) from error
         progress.dataset_size = len(cases)
         progress.dataset_sha256 = hashlib.sha256(raw_labels).hexdigest()
-        source = run_dir / "Ano-2099.json"
+        source = run_dir / f"Ano-{EVALUATION_YEAR}.json"
         _write_artifact(
             run,
             writer,
@@ -349,7 +350,7 @@ def _execute(
             "dataset_sha256": progress.dataset_sha256,
             "fixture_sha256": FIXTURE_SHA256,
             "replicas": 4,
-            "source_year": 2099,
+            "source_year": EVALUATION_YEAR,
             "db_path": str(run_dir / "eval.duckdb"),
             "source_path": str(source),
             "per_rule": settings.sampling.per_rule,
@@ -371,7 +372,7 @@ def _execute(
         run,
         DuckDBPolicyRepository(connection),
         DuckDBExpenseRepository(connection),
-        {2099: JsonExpenseSource(source)},
+        {EVALUATION_YEAR: JsonExpenseSource(source)},
     )
     if run.counters.get("records_loaded") != 800 or run.counters.get("files_failed"):
         raise EvaluationFailure("A preparação das 800 despesas sintéticas falhou.")

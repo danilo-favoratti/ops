@@ -3,7 +3,7 @@
 ## Purpose and inputs
 
 Run commands from `opsiu/` after `uv sync`. The checker evaluates current expense
-snapshots and dated policies loaded by [ingest](ingest.md). It writes versioned
+snapshots and versioned policies. It writes versioned
 findings with source, record, run, step, and code provenance. Agents do not decide
 whether these rules trigger, and findings still require human review.
 
@@ -11,9 +11,11 @@ whether these rules trigger, and findings still require human review.
 uv run python3 -m opsiu check
 uv run python3 -m opsiu check --regras R01,R02
 uv run python3 -m opsiu check --regras R07,R14 --dry-run
+uv run python3 -m opsiu check --regras R01,R05,R10,R12,R13,R14 --dry-run
 ```
 
-Without `--regras`, all 14 currently registered rules run:
+Without `--regras`, the checker selects all 14 registered rules, including
+explicitly suspended rules whose withdrawal is recorded:
 
 - [R01: vehicle rental](../../.llms/rules/R01-locacao-veiculos.md).
 - [R02: taxi, tolls, and parking](../../.llms/rules/R02-taxi-pedagio-estacionamento.md).
@@ -24,27 +26,33 @@ Without `--regras`, all 14 currently registered rules run:
 - [R07: accumulated state quota](../../.llms/rules/R07-cota-uf.md).
 - [R08: payments to CPF](../../.llms/rules/R08-pagamento-cpf.md).
 - [R09: possible duplicate invoices](../../.llms/rules/R09-nota-duplicada.md).
-- [R10: issue-to-competence interval](../../.llms/rules/R10-prazo-reembolso.md).
+- [R10: submission deadline, suspended](../../.llms/rules/R10-prazo-reembolso.md).
 - [R11: pre-election publicity](../../.llms/rules/R11-divulgacao-eleitoral.md).
 - [R12: shared surname with an individual partner](../../.llms/rules/R12-sobrenome-socio.md).
 - [R13: potentially incompatible supplier](../../.llms/rules/R13-fornecedor-incompativel.md).
-- [R14: leadership quota](../../.llms/rules/R14-liderancas.md).
+- [R14: pooled leadership quota, suspended](../../.llms/rules/R14-liderancas.md).
 
 Unknown or repeated rule identifiers are configuration errors.
 `OPSIU_CONFIG` selects the TOML file; nested `OPSIU_*`
 environment overrides take precedence over its values. Paths are relative to the
 working directory.
 
-R07 and R14 use `rules.quota_margin_percent`, a finite nonnegative Decimal with
+R07 uses `rules.quota_margin_percent`, a finite nonnegative Decimal with
 default `5`. For example, this previews a 10% margin without publishing findings:
 
 ```sh
-OPSIU_RULES__QUOTA_MARGIN_PERCENT=10 uv run python3 -m opsiu check --regras R07,R14 --dry-run
+OPSIU_RULES__QUOTA_MARGIN_PERCENT=10 uv run python3 -m opsiu check --regras R07 --dry-run
 ```
 
-The initial policy dates are assumptions, as explained in
-[ADR 0008](../adr/0008-policy-effective-date-assumption.md). The quota rules retain
-their approximate interpretation and limitations concerning individual roles.
+R01 version 3 and R05 version 2 use the researched 2023–2026 schedules in
+`domain/researched_caps.py`. Each finding records policy dates, formulas, source
+URLs and rounding. Transition months and uncertain additional rental allowances
+produce review indicators. These versions do not read the legacy `caps` rows.
+
+Other policy dates retain the assumptions in
+[ADR 0008](../adr/0008-policy-effective-date-assumption.md). In particular, R07's
+historical quota and individual-role limitations remain unresolved. R14's
+suspension does not depend on the configured quota margin.
 
 ## Execution and outputs
 
@@ -60,7 +68,8 @@ migrations. Publication-time immutable conflicts are not checked by a dry run.
 Each invocation prints its run ID first and its generated `report.md` path last.
 The run directory also contains `manifest.json`, `events.jsonl`, and `log.jsonl`.
 The manifest records selected rule versions, source hashes, configuration identity,
-and counters for completed, skipped, and failed rules and finding changes.
+and counters for completed, skipped, suspended and failed rules, uncovered
+candidates, and finding changes.
 The Portuguese run report summarizes step outcomes, durations, counters, and
 failure messages. Inspect the structured events with:
 
@@ -74,18 +83,31 @@ Portuguese summary. Exporting does not approve the findings.
 ## Failure modes
 
 A missing required relation causes a recorded skipped rule step, preserving its
-previous findings. A missing applicable dated policy, ambiguous source origin in a rule without document-row grouping,
-unknown leadership role, evaluation error, or publication conflict fails that
-rule instead. Its attempted finding changes roll back, and other selected rules
-can continue. A failed database-preparation step prevents rule evaluation.
+previous findings. If any R01/R05 candidate is outside researched policy
+coverage, `rule.coverage_missing` records the unassessed count and the entire
+rule publication is skipped, including covered candidates. This prevents
+partial coverage from withdrawing earlier findings.
+
+A missing applicable policy in a legacy rule, ambiguous source origin in a rule
+without document-row grouping, evaluation error, or publication conflict fails
+that rule instead. Its attempted finding changes roll back, and other selected
+rules can continue. A failed database-preparation step prevents rule evaluation.
 An existing empty external table is not equivalent to a successful source import:
 R11 requires a successful TSE import for relevant election years, and R12/R13
 require Receita coverage for current supplier roots. Use the [fetch runbook](fetch.md)
 to supply these sources before retrying.
 
 A successful complete rule evaluation supersedes prior active findings that are
-no longer emitted, including replaced rule versions. Skipped rules, failed rules,
-and dry runs never supersede findings.
+no longer emitted, including replaced rule versions. Temporary source/coverage
+skips, failures and dry runs never supersede findings.
+
+Explicit versioned suspension is different: R10 version 2 and R14 version 2
+withdraw an unsupported criterion. A normal publishing check appends
+supersessions for their prior active findings, records `rule.suspended` with the
+reason and count, and marks the step skipped. Repeating it creates no additional
+supersessions. It neither records a human rejection nor certifies the expenses.
+R10 requires actual supply/submission dates; R14 requires pooled entitlement
+history. See [ADR 0014](../adr/0014-researched-policies-and-rule-suspension.md).
 
 Exit code `0` means the run completed, which can include skipped rules; inspect
 the counters. Exit code `1` indicates operational errors, and `2` indicates an
@@ -118,16 +140,19 @@ the explicit policy or deliberate rule-version decision described in ADR 0009.
 
 ## Multiple accounting rows per document
 
-R01, R09, and R11 version 2 opt into grouping evaluated occurrences by document.
+R01 version 3, R05 version 2, R09 version 3, R11 version 2, R12 version 4 and
+R13 version 3 group evaluated occurrences by document.
 The finding identity is unchanged. When a document has multiple evaluated
 occurrences or distinct source records, evidence includes the complete ordered
 occurrence list and all current source-file/record hashes for that document.
 The primary provenance is a deterministic anchor, not a claim that the anchor
 row alone contains the entire finding. Raw expense rows remain untouched.
 
-Amounts sum evaluated occurrences: monthly excesses for R01, distinct duplicate
-group gross amounts for R09, and selected accounting-row net amounts for R11.
+Amounts sum evaluated occurrences: monthly excesses for R01/R05, distinct duplicate
+group gross amounts for R09, and selected accounting-row net amounts for
+R11/R12/R13.
 They are review indicators, not additive recoverable totals across rules.
 R11 ambiguous name/UF candidate matches retain every candidate and have
 `revisar` severity. They do not assert that any particular homonym is the deputy.
-Other rules continue to fail on ambiguous origins or duplicate finding keys.
+R12 also preserves separate source-record identities for nonpositive document
+IDs. Other rules continue to fail on ambiguous origins or duplicate finding keys.

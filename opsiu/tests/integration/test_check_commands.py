@@ -11,9 +11,12 @@ import pytest
 from typer.testing import CliRunner
 
 from opsiu.adapters.duckdb.connection import connect_database
+from opsiu.adapters.duckdb.review_repository import DuckDBReviewRepository
+from opsiu.domain.decisions import Decision, DecisionValue
 from opsiu.domain.rules import registry
 from opsiu.domain.rules.base import RuleDescriptor, RuleResult
 from opsiu.interfaces.cli import app
+from opsiu.interfaces.cli.runtime import command_run
 
 pytestmark = pytest.mark.integration
 
@@ -184,3 +187,135 @@ def test_candidate_query_rejects_mutations_multiple_statements_and_ambiguous_col
     with connect_database(workspace / "database.duckdb", read_only=True) as db:
         assert db.execute("SELECT count(*) FROM despesas").fetchone() == (2,)
         assert db.execute("SELECT count(*) FROM findings").fetchone() == (0,)
+
+
+def test_explicit_suspension_retires_evidence_once_and_preserves_human_history(
+    workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    load()
+    runner = CliRunner()
+    assert runner.invoke(app, ["check"]).exit_code == 0
+    with command_run("test.review", {}) as context:
+        with context.run.step("decidir"):
+            db = context.open_database()
+            assert db is not None
+            first = db.execute("SELECT finding_key FROM findings LIMIT 1").fetchone()
+            assert first is not None
+            key = str(first[0])
+            DuckDBReviewRepository(db).append_decision(
+                Decision(
+                    context.run.ids.new_id(),
+                    key,
+                    DecisionValue.REJECTED,
+                    "Revisor sintético",
+                    "Decisão anterior preservada.",
+                    context.run.clock.now(),
+                    context.run.run_id,
+                    context.run.require_step(),
+                )
+            )
+    with connect_database(workspace / "database.duckdb", read_only=True) as db:
+        records = db.execute(
+            "SELECT * FROM finding_records ORDER BY finding_key"
+        ).fetchall()
+        decisions = db.execute(
+            "SELECT * FROM decisions ORDER BY decision_id"
+        ).fetchall()
+    reason = "Datas necessárias indisponíveis; inferência anterior retirada."
+    monkeypatch.setattr(
+        GoodRule,
+        "descriptor",
+        replace(
+            GoodRule.descriptor,
+            version="2",
+            needs=("missing_external",),
+            suspended_reason=reason,
+        ),
+    )
+    # Neither dry-run nor publication may execute candidate SQL for suspension.
+    monkeypatch.setattr(GoodRule, "sql", "DELETE FROM despesas")
+    assert runner.invoke(app, ["check", "--dry-run"]).exit_code == 0
+    with connect_database(workspace / "database.duckdb", read_only=True) as db:
+        assert db.execute(
+            "SELECT count(*) FROM findings WHERE status='active'"
+        ).fetchone() == (2,)
+        assert db.execute("SELECT count(*) FROM finding_supersessions").fetchone() == (
+            0,
+        )
+    result = runner.invoke(app, ["check"])
+    assert result.exit_code == 0, result.output
+    run_id = result.stdout.splitlines()[0].removeprefix("run_id: ")
+    assert runner.invoke(app, ["check"]).exit_code == 0
+    with connect_database(workspace / "database.duckdb", read_only=True) as db:
+        assert (
+            db.execute("SELECT * FROM finding_records ORDER BY finding_key").fetchall()
+            == records
+        )
+        assert (
+            db.execute("SELECT * FROM decisions ORDER BY decision_id").fetchall()
+            == decisions
+        )
+        assert db.execute("SELECT count(*) FROM finding_supersessions").fetchone() == (
+            2,
+        )
+        assert db.execute(
+            "SELECT count(*) FROM findings WHERE status='active'"
+        ).fetchone() == (0,)
+        assert db.execute("SELECT count(*) FROM despesas").fetchone() == (2,)
+        event = db.execute(
+            "SELECT attributes_json FROM events "
+            "WHERE run_id=? AND kind='rule.suspended'",
+            [run_id],
+        ).fetchone()
+        assert event is not None
+        assert json.loads(event[0]) == {
+            "rule_id": "T01",
+            "rule_version": "2",
+            "reason": reason,
+            "findings_superseded": 2,
+            "dry_run": False,
+        }
+    manifest = json.loads((workspace / "runs" / run_id / "manifest.json").read_text())
+    assert manifest["counters"]["rules_suspended"] == 1
+    assert manifest["counters"]["rules_completed"] == 0
+    assert manifest["counters"]["findings_superseded"] == 2
+
+
+def test_partial_policy_coverage_preserves_the_complete_previous_result(
+    workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class PartlyCoveredRule(GoodRule):
+        descriptor = replace(GoodRule.descriptor, version="2")
+
+        def coverage_reason(self, row: Mapping[str, object]) -> str | None:
+            return (
+                "Competência sem política pesquisada."
+                if row["id_documento"] == 2
+                else None
+            )
+
+    load()
+    runner = CliRunner()
+    assert runner.invoke(app, ["check"]).exit_code == 0
+    with connect_database(workspace / "database.duckdb", read_only=True) as db:
+        original = db.execute("SELECT * FROM findings ORDER BY finding_key").fetchall()
+    monkeypatch.setattr(registry, "RULES", (PartlyCoveredRule,))
+    result = runner.invoke(app, ["check"])
+    assert result.exit_code == 0, result.output
+    run_id = result.stdout.splitlines()[0].removeprefix("run_id: ")
+    with connect_database(workspace / "database.duckdb", read_only=True) as db:
+        assert (
+            db.execute("SELECT * FROM findings ORDER BY finding_key").fetchall()
+            == original
+        )
+        assert db.execute("SELECT count(*) FROM finding_supersessions").fetchone() == (
+            0,
+        )
+        assert db.execute(
+            "SELECT status FROM steps WHERE run_id=? AND name='verificar_T01'",
+            [run_id],
+        ).fetchone() == ("skipped",)
+    manifest = json.loads((workspace / "runs" / run_id / "manifest.json").read_text())
+    assert manifest["counters"]["candidates_without_coverage"] == 1
+    assert manifest["counters"]["rules_skipped"] == 1
+    assert manifest["counters"]["rules_completed"] == 0

@@ -21,7 +21,7 @@ FIXTURE = Path(__file__).parents[1] / "fixtures/mini_dataset/Ano-2099.json"
 CAP_RULES = tuple(
     rule
     for rule in registry.RULES
-    if rule.descriptor.id in {"R01", "R02", "R03", "R04", "R05", "R06"}
+    if rule.descriptor.id in {"R02", "R03", "R04", "R06"}
 )
 
 

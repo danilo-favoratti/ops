@@ -70,7 +70,7 @@ def test_eval_budget_and_coverage_have_real_trace_lineage_without_label_leakage(
         ).fetchall()
         assert db.execute("SELECT count(*) FROM runs").fetchone() == (1,)
         assert db.execute("SELECT count(*) FROM despesas").fetchone() == (800,)
-        assert db.execute("SELECT count(*) FROM finding_records").fetchone() == (60,)
+        assert db.execute("SELECT count(*) FROM finding_records").fetchone() == (52,)
     assert len(traces) == 20
     assert {trace[1] for trace in traces} == set(LOCAL_RULE_IDS)
     assert {trace[2] for trace in traces} == {"scripted"}
@@ -148,8 +148,8 @@ def test_invalid_typed_output_consumes_budget_and_counts_as_failed_disagreement(
 def test_sampling_and_repeat_preserve_prior_run_files(tmp_path: Path) -> None:
     configuration = settings(tmp_path, per_rule=1)
     first = run_evaluation(configuration)
-    assert first.selected == first.attempted == first.succeeded == 11
-    assert first.coverage == pytest.approx(11 / 50)
+    assert first.selected == first.attempted == first.succeeded == 9
+    assert first.coverage == pytest.approx(9 / 50)
     hashes = {
         path.relative_to(first.run_dir): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in first.run_dir.rglob("*")

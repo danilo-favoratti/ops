@@ -21,7 +21,7 @@ def row() -> dict[str, object]:
     return {
         "id_documento": 1,
         "valor_liquido": Decimal("12.34"),
-        "cnpj": "00000001000100",
+        "cnpj": "00000001000136",
         "cnpj_root": "00000001",
         "covered_root": "00000001",
         "snapshot_id": "source",
@@ -60,20 +60,20 @@ def test_rare_surname_matches_but_first_names_common_names_and_suffixes_do_not()
         (13, "4711302", "COMERCIO", True),
         (13, "4712100", "COMERCIO", True),
         (13, "5611201", "RESTAURANTE", False),
-        (13, None, "HIPERMERCADOS TESTE", True),
-        (13, None, "MINIMERCADO TESTE", True),
-        (13, None, "MERCEARIA TESTE", True),
+        (13, None, "HIPERMERCADOS TESTE", False),
+        (13, None, "MINIMERCADO TESTE", False),
+        (13, None, "MERCEARIA TESTE", False),
         (13, None, "MERCADO CENTRAL", False),
         (13, None, "SUPERMERCADOX", False),
         (120, "4923002", "LOCADORA", True),
-        (120, None, "LOCACAO COM MOTORISTA", True),
-        (120, None, "SERVIÇOS DE MOTORISTA LTDA", True),
+        (120, None, "LOCACAO COM MOTORISTA", False),
+        (120, None, "SERVIÇOS DE MOTORISTA LTDA", False),
         (120, None, "LOCACAO SEM MOTORISTA", False),
         (120, None, "SUPERMERCADO TESTE", False),
         (1, "4711302", "SUPERMERCADO TESTE", False),
     ],
 )
-def test_r13_exact_activity_and_legal_name_policies(
+def test_r13_exact_activity_without_standalone_name_triggers(
     category: int, cnae: str | None, name: str, expected: bool
 ) -> None:
     candidate = row()
@@ -114,10 +114,10 @@ def test_r12_excludes_institutional_leadership_but_keeps_real_deputy_without_cpf
             "12.34::DECIMAL(18,2) AS valor_liquido, "
             "'hash' AS record_sha256, 1 AS source_file_id, "
             "'LIDERANÇA DA CÂMARA' AS nome_parlamentar, "
-            "'00000001000100' AS cnpj_cpf_digits, "
+            "'00000001000136' AS cnpj_cpf_digits, "
             "NULL::VARCHAR AS cpf, 'NA' AS sigla_uf "
             "UNION ALL SELECT 2, 12.34, 'hash', 1, 'ANA CAMARA', "
-            "'00000001000100', NULL, 'DF'; "
+            "'00000001000136', NULL, 'DF'; "
             "CREATE TABLE source_files AS SELECT 1 AS source_file_id, "
             "2026 AS source_year; "
             "CREATE TABLE cnpj_imports_current AS SELECT 'snapshot' AS snapshot_id, "
@@ -186,7 +186,7 @@ def test_r12_keeps_independent_surname_and_only_eligible_partner_evidence() -> N
     assert result.evidence["parentesco_comprovado"] is False
     assert result.amount == Decimal("12.34")
     assert surname_tokens("Ana Carlota Luiza") == frozenset({"CARLOTA", "LUIZA"})
-    assert R12SobrenomeSocio.descriptor.version == "3"
+    assert R12SobrenomeSocio.descriptor.version == "4"
 
 
 def test_documented_given_name_exclusions_match_reviewed_policy() -> None:

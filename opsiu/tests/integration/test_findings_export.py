@@ -13,7 +13,10 @@ from typer.testing import CliRunner, Result
 from opsiu.adapters.duckdb.connection import connect_database
 from opsiu.interfaces.cli import app
 
-pytestmark = pytest.mark.integration
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("synthetic_cap_policies"),
+]
 FIXTURE = Path(__file__).parents[1] / "fixtures/mini_dataset/Ano-2099.json"
 LOCAL_RULES = ",".join([*(f"R{number:02d}" for number in range(1, 11)), "R14"])
 
@@ -55,7 +58,7 @@ def test_findings_export_keeps_snapshot_provenance_and_previous_artifacts(
     markdown = directory / "findings.md"
     with csv_file.open(encoding="utf-8-sig", newline="") as stream:
         records = list(csv.DictReader(stream))
-    assert len(records) == 15
+    assert len(records) == 13
     assert {record["source_sha256"] for record in records} == {source_sha}
     assert {record["run_id"] for record in records} == {run_id(checked)}
     assert {record["status"] for record in records} == {"active"}
@@ -73,7 +76,9 @@ def test_findings_export_keeps_snapshot_provenance_and_previous_artifacts(
         original_source = str(row[0])
     assert {record["source_file_id"] for record in records} == {original_source}
     text = markdown.read_text(encoding="utf-8")
-    assert all(rule in text for rule in LOCAL_RULES.split(","))
+    assert all(
+        rule in text for rule in LOCAL_RULES.split(",") if rule not in {"R10", "R14"}
+    )
     manifest = json.loads((directory / "manifest.json").read_text())
     assert manifest["status"] == "completed"
     assert "findings.csv" in str(manifest["artifacts"])

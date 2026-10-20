@@ -1,68 +1,45 @@
 ---
 id: R10
-version: "1"
-severidade: media
-fundamento: "O deputado tem até 90 dias para apresentar a documentação comprobatória do gasto."
+version: "2"
+severidade: revisar
+fundamento: "A documentação deve ser apresentada até 90 dias após o fornecimento do produto ou serviço."
 ---
 
-# R10 — Intervalo entre emissão e competência superior a 90 dias
+# R10 — Prazo de apresentação da documentação
 
-## Fundamento e alcance
+## Fundamento e limitação dos dados
 
-A [fonte](../../cota-parlamentar.md) estabelece prazo de até 90 dias para
-apresentação da documentação. Os dados usados aqui informam a data de emissão
-e a competência mensal, mas não a data efetiva de apresentação.
+O [Ato da Mesa 43, art. 4º, § 12](https://www2.camara.leg.br/legin/int/atomes/2009/atodamesa-43-21-maio-2009-588364-normaatualizada-cd-mesa.html)
+fixa o prazo após o fornecimento do produto ou serviço. O
+[dicionário oficial CEAP](https://dadosabertos.camara.leg.br/howtouse/2023-12-26-dados-ceap.html)
+distingue a emissão do documento da competência financeira. Nenhuma delas
+comprova a data de apresentação ou, necessariamente, a do fornecimento.
 
-Por isso, esta regra de severidade média usa o primeiro dia da competência
-como aproximação para comparar o intervalo. O resultado é um sinal para
-revisão documental; não comprova, sozinho, apresentação fora do prazo legal.
-O primeiro dia de um mês não deve ser descrito como uma data real de protocolo.
+A versão 1 usava o primeiro dia da competência como apresentação e a emissão
+como fornecimento. Um intervalo superior a 90 dias entre esses campos não
+sustenta essa inferência. A versão 2 suspende a geração de achados.
 
-## Campos e lógica determinística
+## Comportamento determinístico
 
-Usar `despesas_current`, com `ano`, `mes`, `data_emissao`, `valor_liquido` e
-`id_documento`, mantendo o parlamentar como contexto.
+A suspensão é explícita e versionada. `check --regras R10` registra o motivo
+no evento `rule.suspended` e marca a etapa como ignorada, sem avaliar despesas.
+Em execução normal, substitui os achados anteriores por eventos imutáveis de
+supersessão. Preserva documentos, decisões, pareceres e rastros de agentes.
+Não registra uma decisão humana de rejeição nem declara a despesa regular.
 
-Construir a data `competencia` com o ano e o mês do registro e dia `1`.
-Calcular dias corridos entre `data_emissao` e essa data. Emitir um achado apenas
-quando a diferença for estritamente maior que 90. Exatamente 90 dias não
-dispara; 89 dias também não.
+Em `--dry-run`, não altera achados nem decisões. Uma fonte temporariamente
+ausente em outra regra continua apenas ignorada, sem retirar achados anteriores;
+a suspensão por fundamento inválido é uma situação distinta.
 
-Emissão desconhecida não permite a comparação e não dispara. Emissão
-posterior ao primeiro dia da competência produz diferença negativa e também
-não dispara. Esta regra não faz uma checagem independente de datas futuras.
+## Condições para reativação
 
-O valor do achado é o `valor_liquido` do documento. A proveniência registra
-arquivo, registro, execução, etapa e versão da regra.
+Uma nova versão deve exigir datas comprovadas de fornecimento e apresentação,
+com identidade documental e proveniência das fontes. A ausência dessas datas
+não equivale a zero dias de atraso. A implementação precisa testar prazo exato,
+datas ausentes e divergentes, e situações em que emissão e fornecimento diferem.
 
-## Evidência
+## Orientação para revisão e agentes
 
-Os campos são `data_emissao`, `competencia`, `dias_decorridos`,
-`prazo_dias = 90` e `competencia_e_proxy = true`. As datas são serializadas no
-formato ISO, e `competencia` representa o primeiro dia do mês. O documento
-associado fornece o contexto do parlamentar e do valor líquido. O marcador
-de aproximação preserva a distinção em relação à data real de apresentação.
-
-## Exemplos sintéticos
-
-Os três documentos do parlamentar `401` têm competência de julho de 2099,
-portanto a data de comparação é `2099-07-01`:
-
-- `209900048`, emissão `2099-04-01`: diferença de 91 dias; gera achado
-  de R$ 10,00.
-- `209900049`, emissão `2099-04-02`: exatamente 90 dias; não dispara.
-- `209900050`, emissão `2099-04-03`: 89 dias; não dispara.
-
-Esses exemplos verificam a fronteira do cálculo, sem estabelecer uma data
-de apresentação que não consta dos registros.
-
-## O que o agente deve verificar
-
-Confira as datas legíveis na nota, o mês e ano registrados e o cálculo do
-intervalo. Se houver comprovante de apresentação, cite sua data e sua origem
-separadamente da competência. Registre retificações, diferenças de leitura
-e informações ausentes apenas quando sustentadas pela evidência.
-
-O agente não transforma a aproximação mensal em prova de atraso. Ele anota
-o resultado determinístico; a conclusão e a aprovação para o relatório final
-cabem à revisão humana.
+Pareceres antigos continuam históricos. Não transformar competência em data
+de protocolo nem concluir atraso a partir da versão suspensa. O motivo da
+retirada é insuficiência do fundamento, não comprovação de regularidade.
