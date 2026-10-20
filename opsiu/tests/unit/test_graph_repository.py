@@ -4,9 +4,9 @@ import base64
 import json
 from collections.abc import Iterator
 from dataclasses import asdict, replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 import duckdb
 import pytest
@@ -40,7 +40,13 @@ def expense(
     amount: str = "100.00",
     year: int = 2025,
     glosa: str | None = "0.00",
+    issued_on: date | None | Literal["default"] = "default",
 ) -> Despesa:
+    emission: str | None
+    if issued_on == "default":
+        emission = f"{year}-10-01"
+    else:
+        emission = issued_on.isoformat() if issued_on is not None else None
     return Despesa.from_raw(
         {
             "nomeParlamentar": name,
@@ -52,7 +58,7 @@ def expense(
             "fornecedor": supplier,
             "cnpjCPF": fiscal_id,
             "numero": "NF-123",
-            "dataEmissao": f"{year}-10-01",
+            "dataEmissao": emission,
             "valorDocumento": amount,
             "valorGlosa": glosa,
             "valorLiquido": amount,
@@ -118,6 +124,207 @@ def database() -> Iterator[DuckDBPyConnection]:
             year=2024,
         )
         yield connection
+
+
+@pytest.fixture
+def dated_database(database: DuckDBPyConnection) -> DuckDBPyConnection:
+    source(
+        database,
+        (
+            expense(deputy=1, amount="10.00", issued_on=date(2025, 9, 30)),
+            expense(
+                deputy=2, fiscal_id=CPF, amount="20.00", issued_on=date(2025, 10, 1)
+            ),
+            expense(
+                deputy=3, fiscal_id=None, amount="-5.00", issued_on=date(2025, 10, 2)
+            ),
+            expense(deputy=4, amount="30.00", issued_on=date(2025, 10, 3)),
+            expense(deputy=5, fiscal_id=CPF, amount="40.00", issued_on=None),
+            # Issuance year can differ from the accounting competence year.
+            expense(deputy=6, amount="50.00", issued_on=date(2024, 10, 1)),
+        ),
+        number=40,
+    )
+    return database
+
+
+def test_issue_date_range_is_inclusive_and_totals_cover_all_matching_pages(
+    dated_database: DuckDBPyConnection,
+) -> None:
+    repository = DuckDBGraphRepository(dated_database)
+    filters = GraphFilters(
+        date_from=date(2025, 10, 1), date_to=date(2025, 10, 2), limit=1
+    )
+    first = repository.page(filters)
+    assert first.summary.reimbursements == 2
+    assert first.summary.parliamentarians == 2
+    assert first.summary.suppliers == 2
+    assert first.summary.total_amount == "15.00"
+    assert first.page.returned == 1 and first.page.has_more
+    assert first.page.next_cursor is not None
+    second = repository.page(replace(filters, cursor=first.page.next_cursor))
+    assert second.summary == first.summary
+    assert second.page.returned == 1 and not second.page.has_more
+    receipts = [
+        node
+        for page in (first, second)
+        for node in page.nodes
+        if node.kind == "reimbursement"
+    ]
+    assert {node.details["date"] for node in receipts} == {"2025-10-01", "2025-10-02"}
+    assert len({node.id for node in receipts}) == 2
+    assert {node.details["amount"] for node in receipts} == {"20.00", "-5.00"}
+    same_day = repository.page(
+        GraphFilters(date_from=date(2025, 10, 2), date_to=date(2025, 10, 2))
+    )
+    assert same_day.summary.reimbursements == 1
+    assert same_day.summary.total_amount == "-5.00"
+
+
+@pytest.mark.parametrize(
+    "date_from,date_to,count,total,deputies",
+    [
+        (None, None, 7, "146.01", {1, 2, 3, 4, 5, 6, 7}),
+        (date(2025, 10, 2), None, 2, "25.00", {3, 4}),
+        (None, date(2025, 10, 1), 4, "81.01", {1, 2, 6, 7}),
+        (date(2026, 1, 1), None, 0, "0.00", set()),
+    ],
+)
+def test_open_date_bounds_exclude_unknown_dates_only_when_filtering(
+    dated_database: DuckDBPyConnection,
+    date_from: date | None,
+    date_to: date | None,
+    count: int,
+    total: str,
+    deputies: set[int],
+) -> None:
+    repository = DuckDBGraphRepository(dated_database)
+    page = repository.page(GraphFilters(date_from=date_from, date_to=date_to))
+    assert page.summary.reimbursements == count
+    assert page.summary.total_amount == total
+    assert {
+        node.details["deputy_id"]
+        for node in page.nodes
+        if node.kind == "parliamentarian"
+    } == deputies
+    search = repository.search(
+        GraphSearch("parliamentarian", date_from=date_from, date_to=date_to)
+    )
+    assert {item.id for item in search.items} == {
+        f"deputy:{deputy}" for deputy in deputies
+    }
+
+
+def test_date_range_intersects_accounting_year_and_entity_filters(
+    dated_database: DuckDBPyConnection,
+) -> None:
+    repository = DuckDBGraphRepository(dated_database)
+    filters = GraphFilters(
+        date_from=date(2024, 10, 1), date_to=date(2024, 10, 1), year=2025
+    )
+    page = repository.page(filters)
+    assert page.summary.reimbursements == 1
+    assert page.summary.total_amount == "50.00"
+    assert repository.page(replace(filters, year=2024)).summary.total_amount == "1.01"
+    assert repository.page(replace(filters, deputy_id=6)).summary.reimbursements == 1
+    assert repository.page(replace(filters, deputy_id=7)).summary.reimbursements == 0
+    assert (
+        repository.page(
+            replace(filters, supplier_id=f"supplier:{CPF}")
+        ).summary.reimbursements
+        == 0
+    )
+    search = repository.search(
+        GraphSearch(
+            "parliamentarian",
+            year=2025,
+            date_from=filters.date_from,
+            date_to=filters.date_to,
+        )
+    )
+    assert [item.id for item in search.items] == ["deputy:6"]
+    assert (
+        repository.search(
+            GraphSearch(
+                "parliamentarian",
+                "7",
+                year=2025,
+                date_from=filters.date_from,
+                date_to=filters.date_to,
+            )
+        ).items
+        == ()
+    )
+    suppliers = repository.search(
+        GraphSearch(
+            "supplier",
+            "sao",
+            year=2025,
+            date_from=filters.date_from,
+            date_to=filters.date_to,
+        )
+    )
+    assert [item.id for item in suppliers.items] == [f"supplier:{CNPJ}"]
+    assert (
+        repository.search(
+            GraphSearch(
+                "supplier", CPF, date_from=filters.date_from, date_to=filters.date_to
+            )
+        ).items
+        == ()
+    )
+
+
+@pytest.mark.parametrize(
+    "changed_from,changed_to",
+    [
+        (date(2025, 9, 30), date(2025, 10, 2)),
+        (date(2025, 10, 1), date(2025, 10, 3)),
+        (None, date(2025, 10, 2)),
+        (date(2025, 10, 1), None),
+    ],
+)
+def test_cursors_are_bound_to_both_issue_date_bounds(
+    dated_database: DuckDBPyConnection,
+    changed_from: date | None,
+    changed_to: date | None,
+) -> None:
+    repository = DuckDBGraphRepository(dated_database)
+    filters = GraphFilters(
+        date_from=date(2025, 10, 1), date_to=date(2025, 10, 2), limit=1
+    )
+    first = repository.page(filters)
+    assert first.page.next_cursor is not None
+    with pytest.raises(ValueError, match="incompatível"):
+        repository.page(
+            replace(
+                filters,
+                cursor=first.page.next_cursor,
+                date_from=changed_from,
+                date_to=changed_to,
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    "bounds",
+    [
+        {"date_from": "2025-10-01"},
+        {"date_to": "2025-10-02"},
+        {"date_from": datetime(2025, 10, 1)},
+        {"date_to": datetime(2025, 10, 2, tzinfo=UTC)},
+        {"date_from": True},
+        {"date_to": 20251002},
+        {"date_from": date(2025, 10, 2), "date_to": date(2025, 10, 1)},
+    ],
+)
+def test_date_filters_require_calendar_dates_and_an_ordered_range(
+    bounds: dict[str, Any],
+) -> None:
+    with pytest.raises(ValueError):
+        GraphFilters(**bounds)
+    with pytest.raises(ValueError):
+        GraphSearch("supplier", **bounds)
 
 
 def test_complete_keyset_traversal_preserves_shared_and_missing_document_codes(

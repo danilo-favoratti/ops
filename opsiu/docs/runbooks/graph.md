@@ -20,6 +20,14 @@ then select a suggestion. Searches ignore case and accents. Year and general
 record search further narrow the neighborhood. Apply the filters with
 **Explorar conexões**.
 
+Use **Data inicial** and **Data final** under **Período de emissão** for a custom
+document issue-date range. Both endpoints are inclusive; setting the same date
+selects that day.
+Either endpoint may be left blank. The range combines with the competence-year
+filter and applies to totals, loaded pages and entity search suggestions.
+Records without an issue date are excluded only when a date bound is present.
+Reversed ranges and invalid dates must be corrected before exploring.
+
 Teal circles represent parliamentarians, amber diamonds represent expense
 records, and purple squares represent suppliers. Drag to pan, scroll to zoom,
 or use the zoom/fit buttons. Keyboard arrows move the map, plus/minus zoom, and
@@ -28,7 +36,8 @@ clicking a node.
 
 Select a point to inspect its details and connected records. **Explorar este
 ponto** starts a new neighborhood for that parliamentarian or supplier, retaining
-the year and general search filters. **Carregar mais** adds the next page.
+the year, issue-date range and general search filters. **Carregar mais** adds the
+next page.
 Nothing automatically walks the entire dataset.
 
 The header amount is the exact sum of loaded expense net amounts, including
@@ -81,10 +90,14 @@ is a developer-only Node task described in the
 ## API and audit history
 
 - `GET /graph` renders the page in a `graph.page` run.
-- `GET /api/graph` accepts `deputy_id`, `supplier_id`, `year`, `query`, `cursor`
-  and `limit`, and creates a `graph.data` run.
+- `GET /api/graph` accepts `deputy_id`, `supplier_id`, `year`, `date_from`,
+  `date_to`, `query`, `cursor` and `limit`, and creates a `graph.data` run.
 - `GET /api/graph/search` accepts `kind` (`parliamentarian` or `supplier`),
-  `q`, `year` and `limit`, and creates a `graph.search` run.
+  `q`, `year`, `date_from`, `date_to` and `limit`, and creates a `graph.search` run.
+
+Date parameters use the exact `YYYY-MM-DD` format and filter `data_emissao`.
+An omitted or empty endpoint is unbounded. They combine with the other filters
+and are included in cursor validation and the run's recorded arguments.
 
 Use the opaque `next_cursor` with exactly the same filters and page size.
 The cursor binds the source snapshot and last accounting-row identity, so

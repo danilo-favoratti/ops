@@ -7,6 +7,10 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Added
 
+- Custom, inclusive issue-date ranges for the reimbursement graph, including
+  open-ended ranges. Bounds apply consistently to data, totals, search and
+  pagination, with validation of invalid or reversed dates. The competence-year
+  filter remains independent. No schema, rule or prompt versions change.
 - A local PixiJS reimbursement graph at `/graph`, with parliamentarian/supplier
   search, filters, paginated neighborhoods, exact net totals and source details.
   Graphs use all current accounting rows independently of findings. Fiscal IDs

@@ -43,6 +43,8 @@ def test_graph_shell_and_assets_use_existing_security(workspace: Path) -> None:
         assert response.status_code == 200
         assert "Mapa dos reembolsos" in response.text
         assert 'id="graph-node-budget"' in response.text
+        assert 'id="graph-date-from"' in response.text
+        assert 'id="graph-date-to"' in response.text
         assert "Diagnóstico e controles" in response.text
         assert "unsafe-eval" not in response.headers["Content-Security-Policy"]
         assert "script-src 'self'" in response.headers["Content-Security-Policy"]
@@ -149,6 +151,15 @@ def test_graph_search_and_filtered_neighborhood(workspace: Path) -> None:
         "/api/graph?cursor=not-a-valid-cursor",
         "/api/graph/search?kind=unknown",
         "/api/graph/search?kind=supplier&limit=21",
+        "/api/graph?date_from=2099-02-30",
+        "/api/graph?date_to=20990201",
+        "/api/graph?date_from=2099-02-01T00:00:00",
+        "/api/graph?date_from=2099-W01-1",
+        "/api/graph?date_from=2099-03-01&date_to=2099-02-01",
+        "/api/graph?date_from=2099-01-01&date_from=2099-02-01",
+        "/api/graph/search?kind=supplier&date_from=invalid",
+        "/api/graph/search?kind=parliamentarian&date_to=2099-02-29",
+        "/api/graph/search?kind=supplier&date_from=2099-03-01&date_to=2099-02-01",
     ],
 )
 def test_graph_errors_are_json_and_leave_failed_runs(workspace: Path, url: str) -> None:
@@ -183,3 +194,86 @@ def test_graph_rejects_remote_host_and_stale_snapshot(workspace: Path) -> None:
         )
         assert stale.status_code == 409
         assert "Recomece" in stale.json()["error"]
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "count"),
+    [
+        ("2099-01-01", "2099-02-01", 31),
+        ("2099-04-02", "2099-04-02", 1),
+        ("2099-08-01", "", 145),
+        ("", "2099-01-01", 17),
+        ("", "", 200),
+    ],
+)
+def test_custom_dates_filter_pages_totals_and_audit_arguments(
+    workspace: Path, start: str, end: str, count: int
+) -> None:
+    rows = json.loads(FIXTURE.read_text())["dados"]
+    expected = [
+        row
+        for row in rows
+        if (not start or row["dataEmissao"][:10] >= start)
+        and (not end or row["dataEmissao"][:10] <= end)
+    ]
+    assert len(expected) == count
+    amount = sum((Decimal(str(row["valorLiquido"])) for row in expected), Decimal(0))
+    with TestClient(create_app(Settings()), base_url="http://127.0.0.1") as client:
+        params = {"date_from": start, "date_to": end, "limit": "20"}
+        response = client.get("/api/graph", params=params)
+        assert response.status_code == 200, response.text
+        page = response.json()
+        assert page["summary"]["reimbursements"] == count
+        assert Decimal(page["summary"]["total_amount"]) == amount
+        ids: set[str] = set()
+        for _ in range(11):
+            for node in page["nodes"]:
+                if node["kind"] == "reimbursement":
+                    assert node["id"] not in ids
+                    ids.add(node["id"])
+                    assert not start or node["details"]["date"] >= start
+                    assert not end or node["details"]["date"] <= end
+            if not page["page"]["has_more"]:
+                break
+            params["cursor"] = page["page"]["next_cursor"]
+            response = client.get("/api/graph", params=params)
+            assert response.status_code == 200, response.text
+            page = response.json()
+        assert len(ids) == count
+        manifest = json.loads(
+            (
+                workspace
+                / "runs"
+                / response.headers["X-OPSIU-Run-ID"]
+                / "manifest.json"
+            ).read_text()
+        )
+        assert manifest["arguments"]["date_from"] == start
+        assert manifest["arguments"]["date_to"] == end
+
+
+def test_custom_dates_scope_search_and_bind_pagination(workspace: Path) -> None:
+    with TestClient(create_app(Settings()), base_url="http://127.0.0.1") as client:
+        params = {"date_from": "2099-04-02", "date_to": "2099-04-02"}
+        page = client.get("/api/graph", params=params).json()
+        for kind in ("parliamentarian", "supplier"):
+            response = client.get("/api/graph/search", params={**params, "kind": kind})
+            assert response.status_code == 200
+            assert {item["id"] for item in response.json()["items"]} == {
+                node["id"] for node in page["nodes"] if node["kind"] == kind
+            }
+            absent = client.get(
+                "/api/graph/search", params={**params, "kind": kind, "year": "2025"}
+            )
+            assert absent.status_code == 200 and absent.json()["items"] == []
+        params = {"date_from": "2099-01-01", "date_to": "2099-02-01", "limit": "20"}
+        first = client.get("/api/graph", params=params).json()
+        changed = client.get(
+            "/api/graph",
+            params={
+                **params,
+                "date_to": "2099-03-01",
+                "cursor": first["page"]["next_cursor"],
+            },
+        )
+        assert changed.status_code == 400

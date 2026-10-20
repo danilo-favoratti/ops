@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import asdict
+from datetime import date
 from typing import Literal, cast
 
 from fastapi import FastAPI, Request
@@ -20,6 +21,15 @@ _Audited = Callable[
 ]
 _Render = Callable[[Request, RequestScope, str, dict[str, object]], Response]
 _Complete = Callable[[Response, RequestScope], Response]
+
+
+def _date(value: str) -> date | None:
+    if not value:
+        return None
+    parsed = date.fromisoformat(value)
+    if parsed.isoformat() != value:
+        raise ValueError("Informe a data no formato AAAA-MM-DD.")
+    return parsed
 
 
 def register_graph_routes(
@@ -85,12 +95,23 @@ def register_graph_routes(
         def load() -> Response:
             raw = parameters(
                 request,
-                {"deputy_id", "supplier_id", "year", "query", "cursor", "limit"},
+                {
+                    "deputy_id",
+                    "supplier_id",
+                    "year",
+                    "date_from",
+                    "date_to",
+                    "query",
+                    "cursor",
+                    "limit",
+                },
             )
             filters = GraphFilters(
                 deputy_id=int(raw["deputy_id"]) if raw["deputy_id"] else None,
                 supplier_id=raw["supplier_id"] or None,
                 year=int(raw["year"]) if raw["year"] else None,
+                date_from=_date(raw["date_from"]),
+                date_to=_date(raw["date_to"]),
                 query=raw["query"] or None,
                 cursor=raw["cursor"] or None,
                 limit=int(raw["limit"] or "40"),
@@ -119,11 +140,15 @@ def register_graph_routes(
         scope = scope_for(request)
 
         def load() -> Response:
-            raw = parameters(request, {"kind", "q", "year", "limit"})
+            raw = parameters(
+                request, {"kind", "q", "year", "date_from", "date_to", "limit"}
+            )
             filters = GraphSearch(
                 kind=cast(Literal["parliamentarian", "supplier"], raw["kind"]),
                 q=raw["q"],
                 year=int(raw["year"]) if raw["year"] else None,
+                date_from=_date(raw["date_from"]),
+                date_to=_date(raw["date_to"]),
                 limit=int(raw["limit"] or "12"),
             )
             service = GraphService(DuckDBGraphRepository(scope.database()))

@@ -37,13 +37,27 @@
           <div id="graph-supplier-selected" class="graph-selected-filter" hidden></div>
         </div>
         <div class="field">
-          <label for="graph-year">Ano da despesa</label>
+          <label for="graph-year">Ano da competência</label>
           <select id="graph-year"><option value="">Todos os anos</option>{% for year in [2026, 2025, 2024, 2023] %}<option value="{{ year }}">{{ year }}</option>{% endfor %}</select>
         </div>
         <div class="field">
           <label for="graph-query">Buscar nos registros</label>
           <input id="graph-query" type="search" maxlength="120" placeholder="Documento, nome ou categoria">
         </div>
+        <fieldset class="graph-date-range" aria-describedby="graph-date-help">
+          <legend>Período de emissão</legend>
+          <div class="graph-date-fields">
+            <div class="field">
+              <label for="graph-date-from">Data inicial</label>
+              <input id="graph-date-from" type="date" min="0001-01-01" max="9999-12-31" aria-describedby="graph-date-help">
+            </div>
+            <div class="field">
+              <label for="graph-date-to">Data final</label>
+              <input id="graph-date-to" type="date" min="0001-01-01" max="9999-12-31" aria-describedby="graph-date-help">
+            </div>
+          </div>
+          <p class="field-help" id="graph-date-help">Usa a data de emissão e inclui as duas datas. Preencha uma ou ambas. O ano da competência é um filtro separado; quando preenchido, os dois critérios se aplicam.</p>
+        </fieldset>
         <div class="graph-filter-actions">
           <button class="button button-primary" type="submit">Explorar conexões <span aria-hidden="true">→</span></button>
           <button class="button" id="graph-clear-filters" type="button">Limpar filtros</button>
@@ -101,7 +115,7 @@
         </details>
         <p class="field-help" id="graph-detail-connections"></p>
         <button class="button button-primary" id="graph-expand" type="button">Explorar este ponto →</button>
-        <p class="field-help graph-expand-help" id="graph-expand-help">Abre as despesas deste ponto com os filtros de ano e busca atuais.</p>
+        <p class="field-help graph-expand-help" id="graph-expand-help">Abre as despesas deste ponto com os filtros de competência, emissão e busca atuais.</p>
       </div>
     </aside>
   </div>

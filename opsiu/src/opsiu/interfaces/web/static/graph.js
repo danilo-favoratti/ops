@@ -134,16 +134,33 @@ async function startGraph() {
     if (deputy) filters.deputy_id = deputy.id.replace(/^deputy:/, "");
     if (selectedFilters.supplier) filters.supplier_id = selectedFilters.supplier.id;
     if ($("year").value) filters.year = $("year").value;
+    if ($("date-from").value) filters.date_from = $("date-from").value;
+    if ($("date-to").value) filters.date_to = $("date-to").value;
     if ($("query").value.trim()) filters.query = $("query").value.trim();
     return filters;
   }
 
   function filterDescription() {
+    const from = $("date-from").value, to = $("date-to").value;
+    const displayDate = (value) => value.split("-").reverse().join("/");
+    const range = from && to ? `Emissão: ${displayDate(from)} a ${displayDate(to)}` :
+      from ? `Emissão a partir de ${displayDate(from)}` : to ? `Emissão até ${displayDate(to)}` : "";
     return [selectedFilters.parliamentarian?.label, selectedFilters.supplier?.label,
-      $("year").value, $("query").value.trim()].filter(Boolean).join(" · ") || "Todos os registros";
+      $("year").value ? `Competência: ${$("year").value}` : "", range,
+      $("query").value.trim()].filter(Boolean).join(" · ") || "Todos os registros";
+  }
+
+  function validateDates(report = false) {
+    const from = $("date-from"), to = $("date-to");
+    to.setCustomValidity(from.value && to.value && from.value > to.value ?
+      "A data final deve ser igual ou posterior à data inicial." : "");
+    const valid = from.checkValidity() && to.checkValidity();
+    if (!valid && report) $("filters").reportValidity();
+    return valid;
   }
 
   async function explore() {
+    if (!validateDates(true)) return;
     reset();
     activeFilters = collectFilters();
     $("view-label").textContent = filterDescription();
@@ -152,6 +169,7 @@ async function startGraph() {
 
   async function loadPage() {
     if (busy || !hasMore || disposed) return;
+    if (!validateDates(true)) return;
     // The server binds cursors to page size. Keep it stable through a query.
     if (!cursor) pageLimit = Math.min(pageLimit, store.pageLimit(pageLimit));
     if (store.pageLimit(pageLimit) < pageLimit || pageLimit < 1) {
@@ -405,11 +423,14 @@ async function startGraph() {
     async function lookup() {
       const value = input.value.trim();
       if (value.length < 2) { close(); return; }
+      if (!validateDates()) { message("Revise o período de emissão antes de buscar."); return; }
       controller?.abort(); controller = new AbortController();
       const requestSequence = ++sequence;
       message("Buscando…");
       const params = new URLSearchParams({kind, q: value, limit: 12});
       if ($("year").value) params.set("year", $("year").value);
+      if ($("date-from").value) params.set("date_from", $("date-from").value);
+      if ($("date-to").value) params.set("date_to", $("date-to").value);
       try {
         const data = await request("/api/graph/search", params, controller, `Busca de ${names[kind].toLowerCase()}`);
         if (requestSequence !== sequence || disposed) return;
@@ -467,14 +488,21 @@ async function startGraph() {
   listen($("clear-filters"), "click", () => {
     selectedFilters.parliamentarian = null; selectedFilters.supplier = null;
     for (const search of searches) { search.input.value = ""; search.renderChip(); }
-    $("year").value = ""; $("query").value = ""; explore();
+    $("year").value = ""; $("query").value = "";
+    $("date-from").value = ""; $("date-to").value = ""; explore();
   });
   listen($("year"), "change", () => { for (const search of searches) search.cancel(); });
+  for (const field of ["date-from", "date-to"]) {
+    const changed = () => { validateDates(); for (const search of searches) search.cancel(); };
+    listen($(field), "input", changed);
+    listen($(field), "change", changed);
+  }
   listen($("load-more"), "click", loadPage);
   listen($("node-select"), "change", () => selectNode($("node-select").value));
   listen($("expand"), "click", () => {
     const node = store.nodes.get(selected);
     if (!node || node.kind === "reimbursement") return;
+    if (!validateDates(true)) return;
     selectedFilters.parliamentarian = null; selectedFilters.supplier = null;
     selectedFilters[node.kind] = {id: node.id, label: node.label, subtitle: node.subtitle, kind: node.kind};
     for (const search of searches) { search.input.value = ""; search.renderChip(); }

@@ -88,6 +88,8 @@ _UNVERIFIED_NOTE = (
 def _fingerprint(filters: GraphFilters) -> str:
     fields = asdict(filters)
     fields.pop("cursor")
+    for name, value in (("date_from", filters.date_from), ("date_to", filters.date_to)):
+        fields[name] = value.isoformat() if value is not None else None
     return hashlib.sha256(
         json.dumps(fields, sort_keys=True, ensure_ascii=False).encode("utf-8")
     ).hexdigest()
@@ -182,6 +184,10 @@ def _filters(filters: GraphFilters) -> tuple[str, list[object]]:
         if value is not None:
             conditions.append(f"{column} = ?")
             parameters.append(value)
+    for operator, bound in ((">=", filters.date_from), ("<=", filters.date_to)):
+        if bound is not None:
+            conditions.append(f"data_emissao {operator} ?")
+            parameters.append(bound)
     if filters.query is not None:
         clause, values = _text_search(
             ("nome_parlamentar", "fornecedor", "descricao", "numero"),
@@ -369,6 +375,10 @@ class DuckDBGraphRepository:
         if filters.year is not None:
             conditions.append("ano = ?")
             parameters.append(filters.year)
+        for operator, value in ((">=", filters.date_from), ("<=", filters.date_to)):
+            if value is not None:
+                conditions.append(f"data_emissao {operator} ?")
+                parameters.append(value)
         is_deputy = filters.kind == "parliamentarian"
         name = "nome_parlamentar" if is_deputy else "fornecedor"
         if filters.q:

@@ -2,6 +2,7 @@
 
 import re
 from dataclasses import dataclass
+from datetime import date
 from typing import Protocol
 
 from opsiu.domain.graph import GraphPage, GraphSearchKind, GraphSearchResults
@@ -10,6 +11,17 @@ from opsiu.domain.graph import GraphPage, GraphSearchKind, GraphSearchResults
 def _year(value: int | None) -> None:
     if value is not None and (type(value) is not int or not 1 <= value <= 9999):
         raise ValueError("O ano deve estar entre 1 e 9999.")
+
+
+def _date_range(date_from: date | None, date_to: date | None) -> None:
+    if any(
+        value is not None and type(value) is not date for value in (date_from, date_to)
+    ):
+        raise ValueError("As datas de emissão devem ser datas válidas, sem horário.")
+    if date_from is not None and date_to is not None and date_from > date_to:
+        raise ValueError(
+            "A data inicial de emissão deve ser anterior ou igual à final."
+        )
 
 
 def _query(value: str | None) -> str | None:
@@ -32,9 +44,12 @@ class GraphFilters:
     query: str | None = None
     cursor: str | None = None
     limit: int = 40
+    date_from: date | None = None
+    date_to: date | None = None
 
     def __post_init__(self) -> None:
         _year(self.year)
+        _date_range(self.date_from, self.date_to)
         object.__setattr__(self, "query", _query(self.query))
         if type(self.limit) is not int or not 1 <= self.limit <= 100:
             raise ValueError("Cada página deve conter entre 1 e 100 registros.")
@@ -63,9 +78,12 @@ class GraphSearch:
     q: str = ""
     year: int | None = None
     limit: int = 12
+    date_from: date | None = None
+    date_to: date | None = None
 
     def __post_init__(self) -> None:
         _year(self.year)
+        _date_range(self.date_from, self.date_to)
         if self.kind not in ("parliamentarian", "supplier"):
             raise ValueError("Escolha parlamentares ou fornecedores.")
         object.__setattr__(self, "q", _query(self.q) or "")
