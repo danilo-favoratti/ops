@@ -69,8 +69,15 @@ uv run python3 -m opsiu review
 
 Open `http://127.0.0.1:8765/findings`. Inspect the original expense, deterministic
 evidence, rule text, available invoice text, and agent opinions. Record an
-approval, rejection, or request for further review. Stop the local server when
-finished, then export:
+approval, rejection, or request for further review.
+
+Open `http://127.0.0.1:8765/graph` to explore connections between parliamentarians,
+reimbursements and suppliers. This view covers all current ingested accounting
+rows, including adjustments, independently of findings. It loads small pages
+on demand and includes search and memory/rendering diagnostics; see the
+[graph runbook](docs/runbooks/graph.md).
+
+Stop the local server when finished, then export:
 
 ```sh
 uv run python3 -m opsiu report final

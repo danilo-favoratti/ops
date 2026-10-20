@@ -43,7 +43,7 @@ strong { font-weight: 650; }
 .brand { display: flex; flex-direction: column; text-decoration: none; }
 .brand-name { font-size: 1.35rem; font-weight: 750; letter-spacing: 0.14em; }
 .brand-description { color: #c7d5cc; font-size: 0.72rem; letter-spacing: 0.02em; }
-.site-header nav { margin-left: auto; font-size: 0.9rem; }
+.site-header nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem 1.25rem; margin-left: auto; font-size: 0.9rem; }
 .reviewer { max-width: 19rem; font-size: 0.8rem; color: #c7d5cc; overflow-wrap: anywhere; }
 .reviewer strong { color: #eef7f0; }
 .page { max-width: 1320px; min-height: 65vh; margin: auto; padding: 2.75rem 2rem 3.5rem; }

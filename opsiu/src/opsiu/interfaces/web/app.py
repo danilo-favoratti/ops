@@ -22,6 +22,7 @@ from opsiu.domain.errors import DomainError
 from opsiu.domain.findings import evidence_json
 from opsiu.domain.models import Competencia
 from opsiu.domain.rules import registry
+from opsiu.interfaces.web.graph import register_graph_routes
 from opsiu.interfaces.web.presentation import ExplanationDisplay, money
 from opsiu.interfaces.web.runtime import RequestScope
 from opsiu.interfaces.web.security import (
@@ -453,7 +454,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         scope = scope_for(request)
 
         def load() -> bytes:
-            if filename not in {"htmx.min.js", "review.css", "filters.js"}:
+            if filename not in {
+                "htmx.min.js",
+                "review.css",
+                "filters.js",
+                "pixi.min.js",
+                "graph.css",
+                "graph.js",
+                "graph_state.js",
+            }:
                 raise FileNotFoundError(filename)
             return (_DIRECTORY / "static" / filename).read_bytes()
 
@@ -485,4 +494,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return failure(request, scope, recorded)
         raise AssertionError("HTTP error must fail")
 
+    register_graph_routes(
+        app,
+        scope_for=scope_for,
+        audited=_audited,
+        render=render,
+        complete=complete,
+    )
     return app

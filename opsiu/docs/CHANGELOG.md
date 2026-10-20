@@ -5,6 +5,16 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ## [Unreleased]
 
+### Added
+
+- A local PixiJS reimbursement graph at `/graph`, with parliamentarian/supplier
+  search, filters, paginated neighborhoods, exact net totals and source details.
+  Graphs use all current accounting rows independently of findings. Fiscal IDs
+  with valid check digits connect suppliers; uncertain identities stay separate.
+  Server pages, browser nodes, labels and diagnostics have explicit limits.
+  PixiJS is bundled locally under the existing content security policy.
+  Graph reads create audited runs; no rule, prompt or schema version changes.
+
 ### Fixed
 
 - R01 version 3 and R05 version 2 use researched, dated cap schedules for

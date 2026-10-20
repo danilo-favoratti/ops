@@ -1,0 +1,14 @@
+{
+  "name": "opsiu-pixi-vendor-build",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Developer-only builder for the self-hosted OPSIU graph renderer",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "pixi.js": "8.22.0"
+  }
+}

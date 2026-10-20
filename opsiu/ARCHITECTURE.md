@@ -327,7 +327,8 @@ user; `reviewer` comes from settings. Each approve/reject is a run with one
 step, so the decision trail is in the ledger like everything else. Read requests
 also have independent runs. Templates are server-rendered; locally bundled HTMX
 handles partial updates, with ordinary form submission as a fallback. No frontend
-build. The server binds to loopback and validates Host, form tokens and supplied
+build is required to run the package. The server binds to loopback and validates
+Host, form tokens and supplied
 origins. Cached PDF bytes are verified before serving.
 
 The pending list contains active undecided findings and findings whose latest
@@ -335,6 +336,28 @@ decision is `revisar`. Superseded findings keep their evidence and decision hist
 but cannot receive new decisions. Final reports select only active findings with
 the latest human decision `aprovado`, from one database snapshot. Agent summaries
 containing other findings do not enter that export.
+
+### Reimbursement graph
+
+The same local app serves `/graph` with a self-hosted PixiJS renderer. Graph
+DTOs live in `domain.graph`; `application.graph` owns validated requests,
+`GraphService` and the `GraphRepository` protocol. The DuckDB adapter performs
+aggregates and keyset pagination over current accounting rows. Each graph/search
+request uses the existing request-local run, step, connection and ledger.
+
+An expense node identifies one source-file/record-number pair, preserving
+duplicate document codes and accounting adjustments. Parliamentarians connect
+by source deputy code. Suppliers connect by valid CPF/CNPJ check digits; missing
+or invalid fiscal identities remain isolated per row. Graph relationships are
+independent of audit findings and never modify decisions.
+
+Cursors bind filters and current source hashes. Source changes require a fresh
+exploration. The server returns at most 100 expenses per page and 20 search
+suggestions; the browser retains at most 1,000 nodes, 2,000 edges, 36 labels and
+25 request-log entries. Resets cancel requests, ignore stale results and destroy
+renderer objects. Rendering occurs on interaction instead of running continuous
+pairwise simulation. The [runbook](docs/runbooks/graph.md) explains operation and
+the developer-only, pinned vendor build.
 
 ## Configuration
 

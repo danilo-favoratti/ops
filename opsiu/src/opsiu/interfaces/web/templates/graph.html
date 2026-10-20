@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Mapa dos reembolsos{% endblock %}
+{% block scripts %}
+<link rel="stylesheet" href="/static/graph.css">
+<script src="/static/pixi.min.js" defer></script>
+<script src="/static/graph.js" type="module"></script>
+{% endblock %}
+{% block content %}
+<div class="graph-page" id="graph-page">
+  <div class="graph-heading">
+    <div>
+      <p class="eyebrow">Explore as conexões</p>
+      <h1>Mapa dos reembolsos</h1>
+      <p class="lead">Parlamentares, despesas e fornecedores em uma única visão.</p>
+    </div>
+    <div class="graph-loaded-summary">
+      <span>Valor líquido carregado</span>
+      <strong id="graph-amount">R$ 0,00</strong>
+      <span id="graph-loaded">Nenhum registro carregado</span>
+    </div>
+  </div>
+  <p class="graph-scope-note">O mapa consulta os registros de despesas, incluindo ajustes. Uma conexão representa uma relação nos dados, sem indicar irregularidade.</p>
+  <div class="graph-workspace">
+    <aside class="graph-sidebar" aria-label="Busca e filtros do mapa">
+      <form id="graph-filters">
+        <div class="graph-sidebar-heading"><h2>Explorar dados</h2><span class="graph-step">01</span></div>
+        <div class="field graph-search-field">
+          <label for="graph-deputy">Parlamentar</label>
+          <input id="graph-deputy" type="search" maxlength="120" placeholder="Nome ou código" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="graph-deputy-results" aria-expanded="false">
+          <div class="graph-suggestions" id="graph-deputy-results" role="listbox" aria-label="Parlamentares encontrados" hidden></div>
+          <div id="graph-deputy-selected" class="graph-selected-filter" hidden></div>
+        </div>
+        <div class="field graph-search-field">
+          <label for="graph-supplier">Fornecedor</label>
+          <input id="graph-supplier" type="search" maxlength="120" placeholder="Nome ou CPF/CNPJ" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="graph-supplier-results" aria-expanded="false">
+          <div class="graph-suggestions" id="graph-supplier-results" role="listbox" aria-label="Fornecedores encontrados" hidden></div>
+          <div id="graph-supplier-selected" class="graph-selected-filter" hidden></div>
+        </div>
+        <div class="field">
+          <label for="graph-year">Ano da despesa</label>
+          <select id="graph-year"><option value="">Todos os anos</option>{% for year in [2026, 2025, 2024, 2023] %}<option value="{{ year }}">{{ year }}</option>{% endfor %}</select>
+        </div>
+        <div class="field">
+          <label for="graph-query">Buscar nos registros</label>
+          <input id="graph-query" type="search" maxlength="120" placeholder="Documento, nome ou categoria">
+        </div>
+        <div class="graph-filter-actions">
+          <button class="button button-primary" type="submit">Explorar conexões <span aria-hidden="true">→</span></button>
+          <button class="button" id="graph-clear-filters" type="button">Limpar filtros</button>
+        </div>
+      </form>
+      <div class="graph-legend">
+        <h3>Como ler o mapa</h3>
+        <p><span class="graph-key key-deputy" aria-hidden="true"></span>Parlamentar</p>
+        <p><span class="graph-key key-reimbursement" aria-hidden="true"></span>Registro de despesa</p>
+        <p><span class="graph-key key-supplier" aria-hidden="true"></span>Fornecedor</p>
+        <span class="field-help">Selecione um ponto para ver os detalhes. Arraste o mapa para mover e use a roda do mouse para ampliar.</span>
+      </div>
+      <p class="graph-lazy-note">Carregamento em pequenos lotes. Você escolhe quando trazer mais conexões.</p>
+    </aside>
+    <section class="graph-main" aria-labelledby="graph-map-title">
+      <div class="graph-canvas-heading">
+        <div><h2 id="graph-map-title">Rede de despesas</h2><span id="graph-view-label">Todos os registros</span></div>
+        <span class="graph-live-indicator" id="graph-renderer-label">Iniciando mapa</span>
+      </div>
+      <div class="graph-canvas-wrap" id="graph-canvas-wrap">
+        <div id="graph-canvas" tabindex="0" role="region" aria-label="Mapa interativo. Use as setas para mover, mais e menos para ampliar, e zero para enquadrar. Os pontos também estão disponíveis na lista abaixo."></div>
+        <div class="graph-column-labels" aria-hidden="true"><span>Parlamentares</span><span>Despesas</span><span>Fornecedores</span></div>
+        <div class="graph-overlay" id="graph-overlay"><strong id="graph-overlay-title">Preparando seu mapa</strong><p id="graph-overlay-text">Os registros são carregados sob demanda.</p></div>
+        <div class="graph-canvas-tools" aria-label="Controles de visualização">
+          <button type="button" id="graph-zoom-in" aria-label="Ampliar mapa" title="Ampliar">+</button>
+          <button type="button" id="graph-zoom-out" aria-label="Reduzir mapa" title="Reduzir">−</button>
+          <button type="button" id="graph-fit" aria-label="Enquadrar todas as conexões" title="Enquadrar">↗</button>
+        </div>
+        <span class="graph-zoom-value" id="graph-zoom">100%</span>
+      </div>
+      <div class="graph-loadbar">
+        <p id="graph-status" role="status" aria-live="polite">Preparando visualização…</p>
+        <button class="button button-primary" id="graph-load-more" type="button" disabled>Carregar mais</button>
+      </div>
+      <div class="graph-accessible-picker field">
+        <label for="graph-node-select">Selecionar um ponto carregado</label>
+        <select id="graph-node-select"><option value="">Escolha para consultar os detalhes</option></select>
+      </div>
+    </section>
+    <aside class="graph-detail" aria-labelledby="graph-detail-title">
+      <div class="graph-sidebar-heading"><h2 id="graph-detail-title">Detalhes da conexão</h2><span class="graph-step">02</span></div>
+      <div id="graph-detail-empty" class="graph-detail-empty">
+        <div class="graph-detail-symbol" aria-hidden="true">⌁</div>
+        <h3>Uma conexão por vez</h3>
+        <p>Selecione um parlamentar, uma despesa ou um fornecedor no mapa para conhecer sua relação com os demais.</p>
+      </div>
+      <div id="graph-detail-content" hidden>
+        <span class="graph-detail-kind" id="graph-detail-kind"></span>
+        <h3 id="graph-detail-name"></h3>
+        <p id="graph-detail-subtitle" class="muted small"></p>
+        <dl class="metadata compact" id="graph-detail-fields"></dl>
+        <details class="graph-provenance" id="graph-provenance" hidden>
+          <summary>Origem e integridade</summary>
+          <dl class="metadata compact" id="graph-provenance-fields"></dl>
+        </details>
+        <p class="field-help" id="graph-detail-connections"></p>
+        <button class="button button-primary" id="graph-expand" type="button">Explorar este ponto →</button>
+        <p class="field-help graph-expand-help" id="graph-expand-help">Abre as despesas deste ponto com os filtros de ano e busca atuais.</p>
+      </div>
+    </aside>
+  </div>
+  <details class="graph-debug" id="graph-debug">
+    <summary><span>Diagnóstico e controles</span><span class="graph-debug-summary" id="graph-debug-summary">0 pontos · 0 conexões</span></summary>
+    <div class="graph-debug-body">
+      <div class="graph-debug-controls">
+        <div class="field"><label for="graph-page-size">Registros por lote</label><select id="graph-page-size"><option value="20">20 registros</option><option value="40" selected>40 registros</option><option value="100">100 registros</option></select></div>
+        <div class="field"><label for="graph-node-budget">Limite de pontos</label><select id="graph-node-budget"><option value="200">200 pontos</option><option value="500" selected>500 pontos</option><option value="1000">1.000 pontos</option></select></div>
+        <label class="graph-toggle"><input type="checkbox" id="graph-labels" checked>Mostrar nomes (até 36)</label>
+        <button class="button" type="button" id="graph-pause">Pausar animação</button>
+        <button class="button" type="button" id="graph-layout">Reorganizar mapa</button>
+        <button class="button" type="button" id="graph-clear-memory">Liberar memória</button>
+      </div>
+      <dl class="graph-debug-metrics" id="graph-debug-metrics"></dl>
+      <p class="field-help">O limite conta todos os tipos de ponto. Ao trocar a busca, os objetos anteriores são descartados. O mapa não percorre a base automaticamente.</p>
+      <details class="graph-request-details"><summary>Últimas requisições (até 25)</summary><ol id="graph-request-log"></ol></details>
+    </div>
+  </details>
+  <noscript><p class="notice notice-warning">Ative o JavaScript para consultar o mapa. A <a href="/findings">fila de revisão</a> continua disponível.</p></noscript>
+</div>
+{% endblock %}

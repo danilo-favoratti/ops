@@ -18,6 +18,9 @@ uv run python3 -m opsiu review --port 8766
 Use `uv run python3 -m opsiu review --help` to inspect startup options without
 opening a listener.
 
+The same server provides the [reimbursement graph](graph.md) at `/graph`.
+It explores all current ingested expense records and does not require findings.
+
 The default address is `http://127.0.0.1:8765`. An explicit port changes only the
 port; the listener remains on `127.0.0.1`. Open the displayed local address in a
 browser. Keep the terminal running while reviewing and stop the server with

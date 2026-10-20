@@ -1,0 +1,2 @@
+# Preserve whitespace inside the reproducible vendor bundle's shader literals.
+src/opsiu/interfaces/web/static/pixi.min.js -whitespace
